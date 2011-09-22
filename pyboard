@@ -1,0 +1,105 @@
+#!/usr/bin/python
+
+import gobject, gtk, cairo
+import math
+
+class Board(gtk.DrawingArea):
+	def hex2float(self, *args):
+		return map(lambda x:x * (1.0 / 0x100), args)
+
+	def board(self, cr, s):
+		# fill background
+		cr.set_source_rgb(*self.hex2float(0xbf, 0xf7, 0xd0))
+		cr.rectangle(0, 0, s, s)
+		cr.fill()
+
+		cr.set_line_cap(cairo.LINE_CAP_ROUND)
+		cr.set_line_join(cairo.LINE_JOIN_ROUND)
+		cr.set_line_width(1)
+
+		cr.set_source_rgb(0, 0, 0)
+
+		# draw outline
+		cr.rectangle(0, 0, s, s)
+		cr.stroke()
+
+		# draw inline
+		x = (s / 7.25)
+		y = s - (2 * x)
+		
+		#cr.rectangle(x, x, y, y)
+		#cr.stroke()
+
+		for i in xrange(0, 9):
+			cr.move_to(x + (i * (y / 8)), 0)
+			cr.line_to(x + (i * (y / 8)), x)
+			cr.close_path()
+			cr.stroke()
+		for i in xrange(0, 9):
+			cr.move_to(x + (i * (y / 8)), y + x)
+			cr.line_to(x + (i * (y / 8)), s)
+			cr.close_path()
+			cr.stroke()
+		for i in xrange(0, 9):
+			cr.move_to(0, x + (i * (y / 8)))
+			cr.line_to(x, x + (i * (y / 8)))
+			cr.close_path()
+			cr.stroke()
+		for i in xrange(0, 9):
+			cr.move_to(y + x, x + (i * (y / 8)))
+			cr.line_to(s, x + (i * (y / 8)))
+			cr.close_path()
+			cr.stroke()
+
+
+	def draw(self, cr, w, h):
+		w -= 10
+		h -= 10
+
+		x = min(w, h)
+		cr.translate(5 + ((w - x)/2), 5 + ((h - x)/2))
+		self.board(cr, x)
+
+	def expose(self, _, event):
+		cr = self.window.cairo_create()
+		cr.rectangle(event.area.x, event.area.y,
+				event.area.width, event.area.height)
+		cr.clip()
+		a = self.get_allocation()
+		self.draw(cr, a.width, a.height)
+
+	def __init__(self):
+		gtk.DrawingArea.__init__(self)
+		self.connect('expose-event', self.expose)
+
+class MainWin(gtk.Window):
+	def destroy(self, *_):
+		gtk.Window.destroy(self)
+		if self.in_main:
+			gtk.mainquit()
+			self.in_main = False
+
+	def main(self):
+		self.in_main = True
+		gtk.main()
+
+	def __init__(self):
+		gtk.Window.__init__(self, gtk.WINDOW_TOPLEVEL)
+		self.in_main = False
+		self.connect('destroy', self.destroy)
+		self.set_default_size(640, 480)
+		self.set_title('Cairo demo')
+
+		agr = gtk.AccelGroup()
+		(k, m) = gtk.accelerator_parse('<Control>Q')
+		agr.connect_group(k, m, gtk.ACCEL_VISIBLE, self.destroy)
+		self.add_accel_group(agr)
+
+		self.board = Board()
+		self.add(self.board)
+
+		self.show_all()
+
+if __name__ == '__main__':
+	x = MainWin()
+	x.main()
