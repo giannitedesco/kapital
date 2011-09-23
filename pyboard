@@ -29,20 +29,20 @@ class Board(gtk.DrawingArea):
 		
 		boxes = []
 		for i in xrange(0, 8):
-			mins = (x + (i * (y / 8)), s)
-			maxs = (x + ((i + 1) * (y / 8)),  y + x)
+			mins = (x + (i * (y / 8)), y + x)
+			maxs = (x + ((i + 1) * (y / 8)),  s)
 			boxes.append((mins, maxs))
 		for i in xrange(0, 8):
-			mins = (x, x + ((i + 1) * (y / 8)))
-			maxs = (0, x + (i * (y / 8)))
+			mins = (x, x + (i * (y / 8)))
+			maxs = (0, x + ((i + 1) * (y / 8)))
 			boxes.append((mins, maxs))
 		for i in xrange(0, 8):
-			mins = (x + (i * (y / 8)), 0)
-			maxs = (x + ((i + 1) * (y / 8)), x)
+			mins = (x + (i * (y / 8)), x)
+			maxs = (x + ((i + 1) * (y / 8)), 0)
 			boxes.append((mins, maxs))
 		for i in xrange(0, 8):
-			mins = (x + y, x + ((i + 1) * (y / 8)))
-			maxs = (s, x + (i * (y / 8)))
+			mins = (x + y, x + (i * (y / 8)))
+			maxs = (s, x + ((i + 1) * (y / 8)))
 			boxes.append((mins, maxs))
 
 		cols = [ \
@@ -57,16 +57,41 @@ class Board(gtk.DrawingArea):
 				cr.set_source_rgb(*cols.pop())
 			i += 1
 
-			sz = (abs(maxs[0] - mins[0]),
+			d = (abs(maxs[0] - mins[0]),
 				abs(maxs[1] - mins[1]))
-			sz = (min(sz), max(sz))
+			sz = (min(d), max(d))
 
-			cr.move_to(mins[0], mins[1])
-			cr.line_to(mins[0], maxs[1])
-			cr.line_to(maxs[0], maxs[1])
-			#cr.line_to(maxs[0], mins[1])
-			#cr.close_path()
-			cr.stroke()
+			if d[0] < d[1]:
+				if mins[1] < maxs[1]:
+					t = mins
+					r = 0
+				else:
+					t = (maxs[0], mins[1])
+					r = math.pi
+			else:
+				if mins[0] < maxs[0]:
+					t = (mins[0], maxs[1])
+					r = math.pi * 1.5
+				else:
+					t = mins
+					r = math.pi / 2
+
+			if True:
+				m = cr.get_matrix()
+				cr.translate(t[0], t[1])
+				cr.rotate(r)
+				cr.move_to(0, 0)
+				cr.line_to(sz[0], 0)
+				cr.line_to(sz[0], sz[1])
+				cr.stroke()
+				cr.set_matrix(m)
+			else:
+				cr.move_to(mins[0], mins[1])
+				cr.line_to(mins[0], maxs[1])
+				cr.line_to(maxs[0], maxs[1])
+				cr.line_to(maxs[0], mins[1])
+				cr.close_path()
+				cr.stroke()
 
 
 	def draw(self, cr, w, h):
