@@ -27,28 +27,25 @@ class Board(gtk.DrawingArea):
 		x = (s / 7.25)
 		y = s - (2 * x)
 		
-		#cr.rectangle(x, x, y, y)
-		#cr.stroke()
-
 		for i in xrange(0, 9):
 			cr.move_to(x + (i * (y / 8)), 0)
 			cr.line_to(x + (i * (y / 8)), x)
-			cr.close_path()
+			cr.line_to(x + ((i - 1) * (y / 8)), x)
 			cr.stroke()
 		for i in xrange(0, 9):
-			cr.move_to(x + (i * (y / 8)), y + x)
+			cr.move_to(x + ((i + 1) * (y / 8)), y + x)
+			cr.line_to(x + (i * (y / 8)), y + x)
 			cr.line_to(x + (i * (y / 8)), s)
-			cr.close_path()
 			cr.stroke()
 		for i in xrange(0, 9):
 			cr.move_to(0, x + (i * (y / 8)))
 			cr.line_to(x, x + (i * (y / 8)))
-			cr.close_path()
+			cr.line_to(x, x + ((i - 1) * (y / 8)))
 			cr.stroke()
 		for i in xrange(0, 9):
-			cr.move_to(y + x, x + (i * (y / 8)))
+			cr.move_to(y + x, x + ((i + 1) * (y / 8)))
+			cr.line_to(y + x, x + (i * (y / 8)))
 			cr.line_to(s, x + (i * (y / 8)))
-			cr.close_path()
 			cr.stroke()
 
 
