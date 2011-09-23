@@ -27,25 +27,45 @@ class Board(gtk.DrawingArea):
 		x = (s / 7.25)
 		y = s - (2 * x)
 		
-		for i in xrange(0, 9):
-			cr.move_to(x + (i * (y / 8)), 0)
-			cr.line_to(x + (i * (y / 8)), x)
-			cr.line_to(x + ((i - 1) * (y / 8)), x)
-			cr.stroke()
-		for i in xrange(0, 9):
-			cr.move_to(x + ((i + 1) * (y / 8)), y + x)
-			cr.line_to(x + (i * (y / 8)), y + x)
-			cr.line_to(x + (i * (y / 8)), s)
-			cr.stroke()
-		for i in xrange(0, 9):
-			cr.move_to(0, x + (i * (y / 8)))
-			cr.line_to(x, x + (i * (y / 8)))
-			cr.line_to(x, x + ((i - 1) * (y / 8)))
-			cr.stroke()
-		for i in xrange(0, 9):
-			cr.move_to(y + x, x + ((i + 1) * (y / 8)))
-			cr.line_to(y + x, x + (i * (y / 8)))
-			cr.line_to(s, x + (i * (y / 8)))
+		boxes = []
+		for i in xrange(0, 8):
+			mins = (x + (i * (y / 8)), s)
+			maxs = (x + ((i + 1) * (y / 8)),  y + x)
+			boxes.append((mins, maxs))
+		for i in xrange(0, 8):
+			mins = (x, x + ((i + 1) * (y / 8)))
+			maxs = (0, x + (i * (y / 8)))
+			boxes.append((mins, maxs))
+		for i in xrange(0, 8):
+			mins = (x + (i * (y / 8)), 0)
+			maxs = (x + ((i + 1) * (y / 8)), x)
+			boxes.append((mins, maxs))
+		for i in xrange(0, 8):
+			mins = (x + y, x + ((i + 1) * (y / 8)))
+			maxs = (s, x + (i * (y / 8)))
+			boxes.append((mins, maxs))
+
+		cols = [ \
+			(0, 0, 0),
+			(0, 0, 1.0),
+			(0, 1.0, 0),
+			(1.0, 0, 0)
+			]
+		i = 0
+		for (mins,maxs) in boxes:
+			if i % 8 == 0:
+				cr.set_source_rgb(*cols.pop())
+			i += 1
+
+			sz = (abs(maxs[0] - mins[0]),
+				abs(maxs[1] - mins[1]))
+			sz = (min(sz), max(sz))
+
+			cr.move_to(mins[0], mins[1])
+			cr.line_to(mins[0], maxs[1])
+			cr.line_to(maxs[0], maxs[1])
+			#cr.line_to(maxs[0], mins[1])
+			#cr.close_path()
 			cr.stroke()
 
 
