@@ -5,7 +5,9 @@ from linesock import LineSock
 from xmlhelper import parse_xml_string
 from collections import namedtuple
 
-MonopGame = namedtuple('MonopGame', ['gameid', 'name', 'gametype', 'desc'])
+MonopGame = namedtuple('MonopGame', ['gameid', 'name', 'gametype', 'desc',
+			'canbejoined', 'minplayers', 'maxplayers',
+			'players', 'master'])
 MonopPlayer = namedtuple('MonopPlayer', ['playerid', 'game', 'cookie',
 						'host', 'name'])
 
@@ -13,18 +15,38 @@ class MonopError(Exception):
 	pass
 
 class MonopClient:
+	def configupdate(self, xml):
+		return
+
 	def gameupdate(self, xml):
 		try:
 			g = MonopGame(gameid = int(xml['gameid']),
 				name = xml['name'],
-				gametype = xml['gametype'],
-				desc = xml.get('description',''))
+				gametype = xml.get('gametype', None),
+				desc = xml.get('description',''),
+				canbejoined = bool(xml.get('canbejoined',
+							False)),
+				minplayers = int(xml.get('minplayers', 0)),
+				maxplayers = int(xml.get('maxplayers', 0)),
+				players = int(xml.get('players', 0)),
+				master = int(xml.get('master', -1)))
 		except KeyError, ValueError:
 			raise MonopError
 		self.games[g.name] = g
 		self.msg('game: ', ['bold'])
 		self.msg('%s, %s, %s\n'%(g.name, g.gametype, g.desc))
 		return
+
+	def deleteplayer(self, xml):
+		try:
+			pid = int(xml['playerid'])
+			p = self.players[pid]
+			del self.players[pid]
+		except KeyError, ValueError:
+			raise MonopError
+
+		self.msg('deleted player: ', ['bold'])
+		self.msg('%s\n'%p.name)
 
 	def playerupdate(self, xml):
 		try:
@@ -35,13 +57,19 @@ class MonopClient:
 				name = xml['name'])
 		except KeyError, ValueError:
 			raise MonopError
+
 		self.players[p.playerid] = p
 		self.msg('player: ', ['bold'])
 		self.msg('%s (%s) @ %s\n'%(p.name, p.playerid,
 						p.host))
-		return
 
-		return
+		if p.cookie is not None:
+			if self.nick == p.name:
+				self.msg('I AM FIRST\n', ['dark green'])
+				self.sock.send('.gn%s\n'%'london')
+			else:
+				self.nick = p.name
+				self.msg('I AM SECOND\n', ['red'])
 
 	def client(self, xml):
 		try:
@@ -116,6 +144,8 @@ class MonopClient:
 					'updategamelist':ignore,
 					'playerupdate':self.playerupdate,
 					'gameupdate':self.gameupdate,
+					'deleteplayer':self.deleteplayer,
+					'configupdate':self.configupdate,
 				}
 				if xml.name != 'monopd':
 					raise MonopError
@@ -202,6 +232,8 @@ class MainWin(gtk.Window):
 
 		agr = gtk.AccelGroup()
 		(k, m) = gtk.accelerator_parse('<Control>Q')
+		agr.connect_group(k, m, gtk.ACCEL_VISIBLE, self.destroy)
+		(k, m) = gtk.accelerator_parse('<Control>W')
 		agr.connect_group(k, m, gtk.ACCEL_VISIBLE, self.destroy)
 		self.add_accel_group(agr)
 
