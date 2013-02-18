@@ -31,31 +31,37 @@ class Board(gtk.DrawingArea):
 		for i in xrange(0, 8):
 			mins = (x + (i * (y / 8)), y + x)
 			maxs = (x + ((i + 1) * (y / 8)),  s)
-			boxes.append((mins, maxs))
+			allfour = (i == 0)
+			boxes.append((mins, maxs, allfour))
 		for i in xrange(0, 8):
 			mins = (x, x + (i * (y / 8)))
 			maxs = (0, x + ((i + 1) * (y / 8)))
-			boxes.append((mins, maxs))
+			allfour = (i == 0)
+			boxes.append((mins, maxs, allfour))
 		for i in xrange(0, 8):
 			mins = (x + (i * (y / 8)), x)
 			maxs = (x + ((i + 1) * (y / 8)), 0)
-			boxes.append((mins, maxs))
+			allfour = (i == 7)
+			boxes.append((mins, maxs, allfour))
 		for i in xrange(0, 8):
 			mins = (x + y, x + (i * (y / 8)))
 			maxs = (s, x + ((i + 1) * (y / 8)))
-			boxes.append((mins, maxs))
+			allfour = (i == 7)
+			boxes.append((mins, maxs, allfour))
 
-		cols = [ \
-			(0, 0, 0),
-			(0, 0, 1.0),
-			(0, 1.0, 0),
-			(1.0, 0, 0)
-			]
-		i = 0
-		for (mins,maxs) in boxes:
-			if i % 8 == 0:
-				cr.set_source_rgb(*cols.pop())
-			i += 1
+#		cols = [ \
+#			(0, 0, 0),
+#			(0, 0, 1.0),
+#			(0, 1.0, 0),
+#			(1.0, 0, 0)
+#			]
+#		i = 0
+		
+		cr.set_source_rgb(0, 0, 0)
+		for (mins,maxs,allfour) in boxes:
+#			if i % 8 == 0:
+#				cr.set_source_rgb(*cols.pop())
+#			i += 1
 
 			d = (abs(maxs[0] - mins[0]),
 				abs(maxs[1] - mins[1]))
@@ -76,22 +82,18 @@ class Board(gtk.DrawingArea):
 					t = mins
 					r = math.pi / 2
 
-			if True:
-				m = cr.get_matrix()
-				cr.translate(t[0], t[1])
-				cr.rotate(r)
-				cr.move_to(0, 0)
-				cr.line_to(sz[0], 0)
-				cr.line_to(sz[0], sz[1])
-				cr.stroke()
-				cr.set_matrix(m)
+			m = cr.get_matrix()
+			cr.translate(t[0], t[1])
+			cr.rotate(r)
+			if allfour:
+				cr.move_to(0, sz[1])
+				cr.line_to(0, 0)
 			else:
-				cr.move_to(mins[0], mins[1])
-				cr.line_to(mins[0], maxs[1])
-				cr.line_to(maxs[0], maxs[1])
-				cr.line_to(maxs[0], mins[1])
-				cr.close_path()
-				cr.stroke()
+				cr.move_to(0, 0)
+			cr.line_to(sz[0], 0)
+			cr.line_to(sz[0], sz[1])
+			cr.stroke()
+			cr.set_matrix(m)
 
 
 	def draw(self, cr, w, h):
@@ -113,35 +115,3 @@ class Board(gtk.DrawingArea):
 	def __init__(self):
 		gtk.DrawingArea.__init__(self)
 		self.connect('expose-event', self.expose)
-
-class MainWin(gtk.Window):
-	def destroy(self, *_):
-		gtk.Window.destroy(self)
-		if self.in_main:
-			gtk.mainquit()
-			self.in_main = False
-
-	def main(self):
-		self.in_main = True
-		gtk.main()
-
-	def __init__(self):
-		gtk.Window.__init__(self, gtk.WINDOW_TOPLEVEL)
-		self.in_main = False
-		self.connect('destroy', self.destroy)
-		self.set_default_size(640, 480)
-		self.set_title('Cairo demo')
-
-		agr = gtk.AccelGroup()
-		(k, m) = gtk.accelerator_parse('<Control>Q')
-		agr.connect_group(k, m, gtk.ACCEL_VISIBLE, self.destroy)
-		self.add_accel_group(agr)
-
-		self.board = Board()
-		self.add(self.board)
-
-		self.show_all()
-
-if __name__ == '__main__':
-	x = MainWin()
-	x.main()

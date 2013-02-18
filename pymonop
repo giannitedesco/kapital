@@ -1,0 +1,70 @@
+#!/usr/bin/python
+
+import gobject, gtk, cairo
+from linesock import LineSock
+from board import Board
+from xmlhelper import parse_xml_string
+
+class MainWin(gtk.Window):
+	def destroy(self, *_):
+		gtk.Window.destroy(self)
+		if self.in_main:
+			gtk.mainquit()
+			self.in_main = False
+
+	def main(self):
+		self.in_main = True
+		gtk.main()
+
+	def connect_to(self, host, port):
+		def sockerr(sock, op, msg):
+			self.info_msg('*** %s: %s:%d: %s'%(op,
+					sock.peer[0],
+					sock.peer[1],
+					msg))
+			self.sock = None
+
+		def connected(sock):
+			print '*** Connected: %s:%d'%(
+					sock.peer[0],
+					sock.peer[1])
+
+		def disconnected(sock):
+			print '*** Disonnected: %s:%d'%(
+					sock.peer[0],
+					sock.peer[1])
+			self.sock = None
+
+		def sock_in(sock, msg):
+			print '<<', msg
+			parse_xml_string(msg, verbose = True)
+
+		self.sock.connect('data-in', sock_in)
+		self.sock.connect('connected', connected)
+		self.sock.connect('disconnected', disconnected)
+		self.sock.connect('error', sockerr)
+		self.sock.connect_to(host, port)
+
+	def __init__(self):
+		gtk.Window.__init__(self, gtk.WINDOW_TOPLEVEL)
+		self.in_main = False
+		self.connect('destroy', self.destroy)
+		self.set_default_size(640, 480)
+		self.set_title('Cairo demo')
+
+		self.sock = LineSock()
+		self.connect_to('localhost', 11234)
+
+		agr = gtk.AccelGroup()
+		(k, m) = gtk.accelerator_parse('<Control>Q')
+		agr.connect_group(k, m, gtk.ACCEL_VISIBLE, self.destroy)
+		self.add_accel_group(agr)
+
+		self.board = Board()
+		self.add(self.board)
+
+		self.show_all()
+
+if __name__ == '__main__':
+	x = MainWin()
+	x.main()
