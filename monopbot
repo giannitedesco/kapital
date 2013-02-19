@@ -160,7 +160,9 @@ class MonopClient:
 		return
 
 	def display(self, xml):
+		self.dumpxml(xml)
 		return
+
 	def estategroup(self, xml):
 		try:
 			gid = int(xml['groupid'])
@@ -292,6 +294,10 @@ class MonopClient:
 			self.msg('%s: %s\n'%(p.name,
 				', '.join(['%s -> %s'%(k, v) for
 					k,v in xml.attrib.items()])))
+
+		if pid == self.pid and bool(int(xml.get('can_roll', 0))):
+			self.msg('ROLLIN\n', ['purple'])
+			self.sock.send('.r\n')
 
 		if pid == self.pid and not self.ready:
 			self.ready = True
@@ -449,7 +455,7 @@ class BotLog(gtk.TextView):
 		if not '\n' in msg:
 			return
 
-		self.scroll_to_iter(i, 0.1)
+		self.scroll_to_iter(i, 0.0)
 
 class MainWin(gtk.Window):
 	def destroy(self, *_):
