@@ -9,11 +9,80 @@ MonopGameType = namedtuple('MonopGameType', ['gameid', 'name', 'gametype',
 						'desc', 'canbejoined',
 						'minplayers', 'maxplayers',
 						'players', 'master'])
-MonopPlayer = namedtuple('MonopPlayer', ['playerid', 'game', 'cookie',
-						'host', 'name'])
+Field = namedtuple('Field', ['type', 'value'])
 
 class MonopError(Exception):
 	pass
+
+class FieldType:
+	def __init__(self, name, default = None):
+		self.name = name
+		self.default = default
+	def validate(self, val):
+		return val
+
+class FieldTypeInt(FieldType):
+	def __init__(self, name, default = 0):
+		FieldType.__init__(self, name, default)
+	def validate(self, val):
+		return int(val)
+class FieldTypeStr(FieldType):
+	def __init__(self, name, default = ''):
+		FieldType.__init__(self, name, default)
+	def validate(self, val):
+		return str(val)
+class FieldTypeBool(FieldType):
+	def __init__(self, name, default = False):
+		FieldType.__init__(self, name, default)
+	def validate(self, val):
+		return bool(int(val))
+
+class MonopObject(object):
+	def __init__(self, types):
+		object.__setattr__(self, '_MonopObject__fields', {})
+		for t in types:
+			self.__fields[t.name] = Field(t, t.default)
+	def __dir__(self):
+		return self.__fields.keys()
+	def __getattr__(self, attr):
+		if self.__fields.has_key(attr):
+			return self.__fields[attr].value
+		else:
+			raise AttributeError
+	def __setattr__(self, attr, val):
+		if self.__fields.has_key(attr):
+			a = self.__fields[attr]
+			v = a.type.validate(val)
+			self.__fields[attr] = Field(a.type, v)
+		else:
+			raise AttributeError
+	
+class MonopPlayer(MonopObject):
+	__types = [FieldTypeInt('playerid', -1),
+			FieldTypeInt('game', -1),
+			FieldTypeStr('cookie'),
+			FieldTypeStr('name'),
+			FieldTypeStr('image'),
+			FieldTypeStr('money'),
+			FieldTypeInt('location'),
+			FieldTypeInt('doublecount'),
+			FieldTypeInt('jailcount'),
+			FieldTypeBool('jailed'),
+			FieldTypeBool('directmove'),
+			FieldTypeBool('bankrupt'),
+			FieldTypeBool('hasturn'),
+			FieldTypeBool('can_roll', 0),
+			FieldTypeBool('canrollagain', 0),
+			FieldTypeBool('can_buyestate', 0),
+			FieldTypeStr('host'),
+			FieldTypeBool('spectator'),
+			FieldTypeBool('hasdebt'),
+			FieldTypeBool('master'),
+			FieldTypeBool('canauction'),
+			FieldTypeBool('canusecard')]
+	def __init__(self):
+		MonopObject.__init__(self, MonopPlayer.__types)
+
 
 class MonopClient:
 	def configupdate(self, xml):
@@ -46,7 +115,7 @@ class MonopClient:
 
 		if gid < 0:
 			return self.gametype(xml)
-		self.dumpxml(xml)
+		#self.dumpxml(xml)
 
 	def deleteplayer(self, xml):
 		try:
@@ -59,37 +128,31 @@ class MonopClient:
 		self.msg('deleted player: ', ['bold'])
 		self.msg('%s\n'%p.name)
 
-	def otherplayerupdate(self, xml):
-		try:
-			p = MonopPlayer(playerid = int(xml['playerid']),
-				game = int(xml['game']),
-				cookie = xml.get('cookie',None),
-				host = xml['host'],
-				name = xml['name'])
-		except KeyError, ValueError:
-			raise MonopError
-
-		self.players[p.playerid] = p
-		self.msg('player: ', ['bold'])
-		self.msg('%s (%s) @ %s\n'%(p.name, p.playerid,
-						p.host))
-
 	def playerupdate(self, xml):
 		try:
 			pid = int(xml['playerid'])
 		except KeyError, ValueError:
 			raise MonopError
 
-		if pid != self.pid:
-			return self.otherplayerupdate(xml)
+		p = self.players.get(pid, MonopPlayer())
+		new = p.playerid == -1
 
-		name = xml.get('name', self.nick)
-		if self.nick != name:
-			self.nick = name
+		for (k,v) in xml.attrib.items():
+			setattr(p, k, v)
+		self.players[p.playerid] = p
 
-		if not self.ready:
+		if new:
+			self.msg('player: ', ['bold'])
+			self.msg('%s\n'%p.name)
+		else:
+			self.msg('player update: ', ['bold'])
+			self.msg('%s: %s\n'%(p.name,
+				', '.join(['%s -> %s'%(k, v) for
+					k,v in xml.attrib.items()])))
+
+		if pid == self.pid and not self.ready:
 			self.ready = True
-			if self.nick == name:
+			if self.nick == p.name:
 				self.msg('I AM FIRST\n', ['dark green'])
 				self.sock.send('.gn%s\n'%'london')
 			else:
