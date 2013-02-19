@@ -59,6 +59,7 @@ class TCPSock(gobject.GObject):
 				return
 		if msg == '':
 			self.emit('disconnected')
+			self._sock = None
 			return
 
 		self.emit('data-in', msg)
@@ -70,7 +71,7 @@ class TCPSock(gobject.GObject):
 		return
 
 	def _write(self):
-		if not self.connected:
+		if self._sock is not None and not self.connected:
 			ret = self._sock.getsockopt(SOL_SOCKET, SO_ERROR)
 			if ret:
 				self.emit('error', 'connect', strerror(ret))
