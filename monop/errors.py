@@ -1,0 +1,2 @@
+class MonopError(Exception):
+	pass
