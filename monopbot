@@ -55,7 +55,16 @@ class MonopObject(object):
 			v = a.type.validate(val)
 			self.__fields[attr] = Field(a.type, v)
 		else:
-			raise AttributeError
+			raise AttributeError, '%s not found'%attr
+
+	def update(self, xml):
+		for (k,v) in xml.attrib.items():
+			try:
+				setattr(self, k, v)
+			except AttributeError:
+				print 'BAD ATTRIBUTE', k, v
+				raise AttributeError
+
 	
 class MonopPlayer(MonopObject):
 	__types = [FieldTypeInt('playerid', -1),
@@ -80,14 +89,111 @@ class MonopPlayer(MonopObject):
 			FieldTypeBool('master'),
 			FieldTypeBool('canauction'),
 			FieldTypeBool('canusecard')]
+
 	def __init__(self):
 		MonopObject.__init__(self, MonopPlayer.__types)
 
+class MonopGame(MonopObject):
+	__types = [FieldTypeInt('gameid', -1),
+			FieldTypeStr('gametype'),
+			FieldTypeStr('name'),
+			FieldTypeStr('description'),
+			FieldTypeStr('status'),
+			FieldTypeInt('players'),
+			FieldTypeInt('minplayers'),
+			FieldTypeInt('maxplayers'),
+			FieldTypeBool('canbejoined'),
+			FieldTypeBool('allowestatesales'),
+			FieldTypeBool('collectfines'),
+			FieldTypeBool('alwaysshuffle'),
+			FieldTypeBool('auctionsenabled'),
+			FieldTypeBool('doublepassmoney'),
+			FieldTypeBool('unlimitedhouses'),
+			FieldTypeBool('norentinjail'),
+			FieldTypeInt('master')]
+	def __init__(self):
+		MonopObject.__init__(self, MonopGame.__types)
+
+class EstateGroup(MonopObject):
+	__types = [FieldTypeInt('groupid', -1),
+			FieldTypeStr('name')]
+	def __init__(self):
+		MonopObject.__init__(self, EstateGroup.__types)
+
+class Estate(MonopObject):
+	__types = [FieldTypeInt('estateid', -1),
+			FieldTypeInt('unmortgageprice'),
+			FieldTypeInt('mortgageprice'),
+			FieldTypeInt('rent0'),
+			FieldTypeInt('rent1'),
+			FieldTypeInt('rent2'),
+			FieldTypeInt('rent3'),
+			FieldTypeInt('rent4'),
+			FieldTypeInt('rent5'),
+			FieldTypeInt('houses'),
+			FieldTypeInt('houseprice'),
+			FieldTypeInt('sellhouseprice'),
+			FieldTypeInt('price'),
+			FieldTypeInt('payamount'),
+			FieldTypeInt('money'),
+			FieldTypeInt('passmoney'),
+			FieldTypeInt('taxpercentage'),
+			FieldTypeInt('tax'),
+			FieldTypeInt('group', -1),
+			FieldTypeInt('owner', -1),
+			FieldTypeBool('can_toggle_mortgage'),
+			FieldTypeBool('can_sell_houses'),
+			FieldTypeBool('can_buy_houses'),
+			FieldTypeBool('can_be_owned'),
+			FieldTypeBool('tojail'),
+			FieldTypeBool('mortgaged'),
+			FieldTypeBool('jail'),
+			FieldTypeStr('icon'),
+			FieldTypeStr('color'),
+			FieldTypeStr('bgcolor'),
+			FieldTypeStr('name')]
+	def __init__(self):
+		MonopObject.__init__(self, Estate.__types)
 
 class MonopClient:
-	def configupdate(self, xml):
-		self.dumpxml(xml)
+	def quit(self):
 		return
+
+	def display(self, xml):
+		return
+	def estategroup(self, xml):
+		try:
+			gid = int(xml['groupid'])
+		except KeyError, ValueError:
+			raise MonopError
+
+		g = self.groups.get(gid, EstateGroup())
+		g.update(xml)
+		self.groups[g.groupid] = g
+
+	def estate(self, xml):
+		try:
+			eid = int(xml['estateid'])
+		except KeyError, ValueError:
+			raise MonopError
+
+		e = self.estates.get(eid, Estate())
+		e.update(xml)
+		self.estates[e.estateid] = e
+
+	def configupdate(self, xml):
+		#self.dumpxml(xml)
+		return
+
+	def svrmsg(self, xml):
+		try:
+			t = xml['type']
+			pid = int(xml.get('playerid', -1))
+			author = xml.get('author', '')
+			val = xml.get('value','')
+		except KeyError, ValueError:
+			raise MonopError
+		self.msg('%s: %d: %s\n'%(t, pid, val), ['purple'])
 
 	def gametype(self, xml):
 		try:
@@ -115,7 +221,30 @@ class MonopClient:
 
 		if gid < 0:
 			return self.gametype(xml)
-		#self.dumpxml(xml)
+
+		g = self.games.get(gid, MonopGame())
+		new = g.gameid == -1
+		g.update(xml)
+
+		self.games[g.gameid] = g
+
+		self.msg('game update: ', ['bold'])
+		self.msg('%s: %s\n'%(g.name,
+			', '.join(['%s -> %s'%(k, v) for
+				k,v in xml.attrib.items()])))
+
+		if g.master == self.pid and g.description != 'robotwar':
+			self.msg('I AM MASTER, SETTING NAME\n', ['dark green'])
+			self.sock.send('.gd%s\n'%'robotwar')
+		elif g.master == self.pid and g.players >= 2 \
+				and g.status == 'config':
+			self.msg('I AM MASTER, STARTING GAME\n', ['dark green'])
+			self.sock.send('.gs\n')
+		elif g.canbejoined and g.description == 'robotwar' and \
+				self.players[self.pid].game == -1 and \
+				g.status != 'config':
+			self.msg('JOINING GAME\n', ['red'])
+			self.sock.send('.gj%d\n'%g.gameid)
 
 	def deleteplayer(self, xml):
 		try:
@@ -137,8 +266,7 @@ class MonopClient:
 		p = self.players.get(pid, MonopPlayer())
 		new = p.playerid == -1
 
-		for (k,v) in xml.attrib.items():
-			setattr(p, k, v)
+		p.update(xml)
 		self.players[p.playerid] = p
 
 		if new:
@@ -183,7 +311,9 @@ class MonopClient:
 		self.cookie = None
 		self.gametypes = {}
 		self.games = {}
+		self.groups = {}
 		self.players = {}
+		self.estates = {}
 		self.ready = False
 
 	def __init__(self, msg, nick = 'MrMonopoly'):
@@ -206,11 +336,11 @@ class MonopClient:
 
 	def connect_to(self, host, port):
 		def sockerr(sock, op, msg):
-			self.info_msg('*** %s: %s:%d: %s\n'%(op,
+			self.msg('*** %s: %s:%d: %s\n'%(op,
 					sock.peer[0],
 					sock.peer[1],
 					msg), ['bold', 'purple'])
-			self.sock = None
+			self.abort()
 
 		def connected(sock):
 			self.msg('*** Connected: %s:%d\n'%(
@@ -221,7 +351,7 @@ class MonopClient:
 			self.msg('*** Disonnected: %s:%d\n'%(
 					sock.peer[0],
 					sock.peer[1]), ['bold', 'purple'])
-			self.sock = None
+			self.abort()
 
 		def sock_in(sock, msg):
 			def transition(xml):
@@ -230,11 +360,15 @@ class MonopClient:
 				disp = {
 					'client':self.client,
 					'server':self.server,
+					'display':self.display,
+					'msg':self.svrmsg,
 					'updategamelist':ignore,
 					'playerupdate':self.playerupdate,
 					'gameupdate':self.gameupdate,
 					'deleteplayer':self.deleteplayer,
 					'configupdate':self.configupdate,
+					'estategroupupdate':self.estategroup,
+					'estateupdate':self.estate,
 				}
 				if xml.name != 'monopd':
 					raise MonopError
@@ -299,10 +433,11 @@ class BotLog(gtk.TextView):
 		if not '\n' in msg:
 			return
 
-		self.scroll_to_iter(i, 0.0)
+		self.scroll_to_iter(i, 0.1)
 
 class MainWin(gtk.Window):
 	def destroy(self, *_):
+		self.client.quit()
 		gtk.Window.destroy(self)
 		if self.in_main:
 			gtk.mainquit()
@@ -331,7 +466,7 @@ class MainWin(gtk.Window):
 		self.client.connect_to('localhost', 11234)
 
 		scr = gtk.ScrolledWindow()
-		scr.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
+		scr.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
 		scr.add(self.log)
 
 		self.add(scr)
