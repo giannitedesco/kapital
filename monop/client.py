@@ -7,98 +7,19 @@ from collections import namedtuple
 from gametype import GameType
 from gameobj import GameObj
 from fieldtype import *
+from game import Game
+from player import Player
+from estategroup import EstateGroup
+from estate import Estate
 from errors import *
 
-class MonopPlayer(GameObj):
-	__types = [FieldTypeInt('playerid', -1),
-			FieldTypeInt('game', -1),
-			FieldTypeStr('cookie'),
-			FieldTypeStr('name'),
-			FieldTypeStr('image'),
-			FieldTypeStr('money'),
-			FieldTypeInt('location'),
-			FieldTypeInt('doublecount'),
-			FieldTypeInt('jailcount'),
-			FieldTypeBool('jailed'),
-			FieldTypeBool('directmove'),
-			FieldTypeBool('bankrupt'),
-			FieldTypeBool('hasturn'),
-			FieldTypeBool('can_roll', 0),
-			FieldTypeBool('canrollagain', 0),
-			FieldTypeBool('can_buyestate', 0),
-			FieldTypeStr('host'),
-			FieldTypeBool('spectator'),
-			FieldTypeBool('hasdebt'),
-			FieldTypeBool('master'),
-			FieldTypeBool('canauction'),
-			FieldTypeBool('canusecard')]
-
-	def __init__(self):
-		GameObj.__init__(self, MonopPlayer.__types)
-
-class MonopGame(GameObj):
-	__types = [FieldTypeInt('gameid', -1),
-			FieldTypeStr('gametype'),
-			FieldTypeStr('name'),
-			FieldTypeStr('description'),
-			FieldTypeStr('status'),
-			FieldTypeInt('players'),
-			FieldTypeInt('minplayers'),
-			FieldTypeInt('maxplayers'),
-			FieldTypeBool('canbejoined'),
-			FieldTypeBool('allowestatesales'),
-			FieldTypeBool('collectfines'),
-			FieldTypeBool('alwaysshuffle'),
-			FieldTypeBool('auctionsenabled'),
-			FieldTypeBool('doublepassmoney'),
-			FieldTypeBool('unlimitedhouses'),
-			FieldTypeBool('norentinjail'),
-			FieldTypeInt('master')]
-	def __init__(self):
-		GameObj.__init__(self, MonopGame.__types)
-
-class EstateGroup(GameObj):
-	__types = [FieldTypeInt('groupid', -1),
-			FieldTypeStr('name')]
-	def __init__(self):
-		GameObj.__init__(self, EstateGroup.__types)
-
-class Estate(GameObj):
-	__types = [FieldTypeInt('estateid', -1),
-			FieldTypeInt('unmortgageprice'),
-			FieldTypeInt('mortgageprice'),
-			FieldTypeInt('rent0'),
-			FieldTypeInt('rent1'),
-			FieldTypeInt('rent2'),
-			FieldTypeInt('rent3'),
-			FieldTypeInt('rent4'),
-			FieldTypeInt('rent5'),
-			FieldTypeInt('houses'),
-			FieldTypeInt('houseprice'),
-			FieldTypeInt('sellhouseprice'),
-			FieldTypeInt('price'),
-			FieldTypeInt('payamount'),
-			FieldTypeInt('money'),
-			FieldTypeInt('passmoney'),
-			FieldTypeInt('taxpercentage'),
-			FieldTypeInt('tax'),
-			FieldTypeInt('group', -1),
-			FieldTypeInt('owner', -1),
-			FieldTypeBool('can_toggle_mortgage'),
-			FieldTypeBool('can_sell_houses'),
-			FieldTypeBool('can_buy_houses'),
-			FieldTypeBool('can_be_owned'),
-			FieldTypeBool('tojail'),
-			FieldTypeBool('mortgaged'),
-			FieldTypeBool('jail'),
-			FieldTypeStr('icon'),
-			FieldTypeStr('color'),
-			FieldTypeStr('bgcolor'),
-			FieldTypeStr('name')]
-	def __init__(self):
-		GameObj.__init__(self, Estate.__types)
-
 class Client:
+	def cmd(self, s):
+		if self.sock is None:
+			return
+		self.sock.send('%s\n'%s)
+		self.msg('<< %s\n'%s, ['blue'])
+
 	def quit(self):
 		return
 
@@ -167,7 +88,7 @@ class Client:
 		if gid < 0:
 			return self.gametype(xml)
 
-		g = self.games.get(gid, MonopGame())
+		g = self.games.get(gid, Game())
 		new = g.gameid == -1
 		g.update(xml)
 
@@ -180,16 +101,16 @@ class Client:
 
 		if g.master == self.pid and g.description != 'robotwar':
 			self.msg('I AM MASTER, SETTING NAME\n', ['dark green'])
-			self.sock.send('.gd%s\n'%'robotwar')
+			self.cmd('.gd%s'%'robotwar')
 		elif g.master == self.pid and g.players >= 2 \
 				and g.status == 'config':
 			self.msg('I AM MASTER, STARTING GAME\n', ['dark green'])
-			self.sock.send('.gs\n')
+			self.cmd('.gs')
 		elif g.canbejoined and g.description == 'robotwar' and \
 				self.players[self.pid].game == -1 and \
 				g.status != 'config':
 			self.msg('JOINING GAME\n', ['red'])
-			self.sock.send('.gj%d\n'%g.gameid)
+			self.cmd('.gj%d'%g.gameid)
 
 	def deleteplayer(self, xml):
 		try:
@@ -217,38 +138,54 @@ class Client:
 			self.groups = {}
 			self.estates ={}
 
+	def on_player_update(self, p, k, v):
+		if k in ['hasturn','can_roll'] and v:
+			self.current = p
+			self.newturn = True
+
+		if p.playerid != self.pid:
+			return
+
+		if k == 'name':
+			#self.nick = v
+			pass
+		elif k == 'can_buyestate' and v:
+			self.msg('BUYING IT\n', ['dark green'])
+			self.cmd('.eb')
+		else:
+			self.msg('>> %s %s -> %s\n'%(p.name, k, v), ['purple'])
+
+	def do_turn(self, i):
+		if i.jailed:
+			self.msg('BUYING OUT OF JAIL\n', ['red'])
+			self.cmd('.jp')
+		elif i.can_roll:
+			self.msg('ROLLIN\n', ['red'])
+			self.cmd('.r')
+
 	def playerupdate(self, xml):
 		try:
 			pid = int(xml['playerid'])
 		except KeyError, ValueError:
 			raise MonopError
 
-		p = self.players.get(pid, MonopPlayer())
-		new = p.playerid == -1
+		p = self.players.get(pid, Player(self.on_player_update))
 
 		p.update(xml)
 		self.players[p.playerid] = p
-
-		if new:
-			self.msg('player: ', ['bold'])
-			self.msg('%s\n'%p.name)
-		else:
-			self.msg('player update: ', ['bold'])
-			self.msg('%s: %s\n'%(p.name,
-				', '.join(['%s -> %s'%(k, v) for
-					k,v in xml.attrib.items()])))
-
-		if pid == self.pid and bool(int(xml.get('can_roll', 0))):
-			self.msg('ROLLIN\n', ['purple'])
-			self.sock.send('.r\n')
 
 		if pid == self.pid and not self.ready:
 			self.ready = True
 			if self.nick == p.name:
 				self.msg('I AM FIRST\n', ['dark green'])
-				self.sock.send('.gn%s\n'%'london')
+				self.cmd('.gn%s'%'london')
 			else:
 				self.msg('I AM SECOND\n', ['red'])
+
+		if self.newturn:
+			if self.current.playerid == self.pid:
+				self.do_turn(self.current)
+			self.newturn = False
 
 	def client(self, xml):
 		try:
@@ -267,7 +204,7 @@ class Client:
 		except KeyError:
 			raise MonopError
 		self.msg('server version: %s\n'%ver)
-		self.sock.send('.n%s\n'%self.nick)
+		self.cmd('.n%s'%self.nick)
 
 	def abort(self):
 		self.sock = None
@@ -278,6 +215,8 @@ class Client:
 		self.groups = {}
 		self.players = {}
 		self.estates = {}
+		self.current = None
+		self.newturn = False
 		self.ready = False
 
 	def __init__(self, msg, nick = 'MrMonopoly'):
