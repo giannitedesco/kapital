@@ -257,6 +257,21 @@ class MonopClient:
 		self.msg('deleted player: ', ['bold'])
 		self.msg('%s\n'%p.name)
 
+	def deletegame(self, xml):
+		try:
+			gid = int(xml['gameid'])
+			g = self.games[gid]
+			del self.games[gid]
+		except KeyError, ValueError:
+			raise MonopError
+
+		self.msg('deleted game: ', ['bold'])
+		self.msg('%s\n'%g.description)
+
+		if self.players[self.pid].game == gid:
+			self.groups = {}
+			self.estates ={}
+
 	def playerupdate(self, xml):
 		try:
 			pid = int(xml['playerid'])
@@ -366,6 +381,7 @@ class MonopClient:
 					'playerupdate':self.playerupdate,
 					'gameupdate':self.gameupdate,
 					'deleteplayer':self.deleteplayer,
+					'deletegame':self.deletegame,
 					'configupdate':self.configupdate,
 					'estategroupupdate':self.estategroup,
 					'estateupdate':self.estate,
