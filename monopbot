@@ -4,8 +4,9 @@ import gobject, gtk, pango
 from monop import Client as MonopClient
 
 class MonopDisplay(gtk.VBox):
-	def __init__(self):
+	def __init__(self, cmd):
 		gtk.VBox.__init__(self)
+		self.cmd = cmd
 		self.text = gtk.TextView()
 		self.buttonbar = gtk.HBox()
 		self.pack_start(self.text, True, True)
@@ -23,6 +24,11 @@ class MonopDisplay(gtk.VBox):
 			clearbuttons = False, estateid = -1):
 		buf = self.text.get_buffer()
 
+		if clearbuttons:
+			def delbutton(button, *_):
+				self.buttonbar.remove(button)
+			self.buttonbar.foreach(delbutton)
+
 		if cleartext:
 			buf.set_text('')
 			i = buf.get_iter_at_offset(0)
@@ -35,6 +41,16 @@ class MonopDisplay(gtk.VBox):
 		buf.move_mark(self.end, i)
 		self.text.scroll_mark_onscreen(self.end)
 		buf.place_cursor(i)
+
+	def add_button(self, caption, command, enabled = True):
+		def closure(window, event, cmd):
+			self.cmd(cmd)
+		b = gtk.Button(caption)
+		print 'SENSITIVE', enabled
+		b.set_sensitive(enabled)
+		b.connect('button-press-event', closure, command)
+		self.buttonbar.add(b)
+		self.buttonbar.show_all()
 
 class BotLog(gtk.TextView):
 	def __setup_tags(self, buf):
@@ -99,10 +115,14 @@ class MainWin(gtk.Window):
 		if len(s):
 			self.client.cmd(s)
 
+	def cmd(self, cmd):
+		if self.client is not None:
+			self.client.cmd(cmd)
+
 	def __init__(self):
 		gtk.Window.__init__(self, gtk.WINDOW_TOPLEVEL)
-		self.client = None
 		self.in_main = False
+		self.client = None
 		self.connect('destroy', self.destroy)
 		self.set_default_size(640, 480)
 		self.set_title('monopbot')
@@ -126,7 +146,9 @@ class MainWin(gtk.Window):
 		vb.pack_start(scr, True, True)
 		vb.pack_start(entry, False, False)
 
-		self.disp = MonopDisplay()
+		self.disp = MonopDisplay(self.cmd)
+		self.client = MonopClient(self.log.msg, self.disp)
+
 		hb = gtk.HPaned()
 		hb.add1(vb)
 		hb.add2(self.disp)
@@ -134,7 +156,6 @@ class MainWin(gtk.Window):
 		self.add(hb)
 		self.show_all()
 
-		self.client = MonopClient(self.log.msg, self.disp.display)
 		self.client.connect_to('localhost', 11234)
 
 if __name__ == '__main__':

@@ -35,9 +35,17 @@ class Client:
 		if self.disp is None:
 			self.msg('%s: %d: %s\n'%(t, pid, val), ['purple'])
 		else:
-			self.disp(text = text, cleartext = cleartext,
+			self.disp.display(text = text, cleartext = cleartext,
 				clearbuttons = clearbuttons,
 				estateid = estateid)
+
+		for x in xml.children:
+			if x.name != 'button':
+				continue
+			caption = x.get('caption', '')
+			command = x.get('command', '')
+			enabled = bool(int(x.get('enabled', 1)))
+			self.disp.add_button(caption, command, enabled)
 
 	def estategroup(self, xml):
 		try:
