@@ -23,6 +23,14 @@ class Client:
 	def quit(self):
 		return
 
+	def cardupdate(self, xml):
+		try:
+			owner = int(xml.get('owner', -1))
+			cardid = int(xml.get('cardid', -1))
+		except KeyError, ValueError:
+			raise MonopError
+		self.msg('player %d gets card %d\n'%(owner, cardid), ['purple'])
+
 	def display(self, xml):
 		try:
 			text = xml.get('text', '')
@@ -170,7 +178,7 @@ class Client:
 			#self.nick = v
 			pass
 		elif k == 'can_buyestate' and v:
-			self.msg('BUYING IT\n', ['dark green'])
+			self.msg('BUYING IT, THEY HATIN\n', ['dark green'])
 			self.cmd('.eb')
 		else:
 			#self.msg('>> %s %s -> %s\n'%(p.name, k, v), ['purple'])
@@ -295,6 +303,7 @@ class Client:
 					'configupdate':self.configupdate,
 					'estategroupupdate':self.estategroup,
 					'estateupdate':self.estate,
+					'cardupdate':self.cardupdate,
 				}
 				if xml.name != 'monopd':
 					raise MonopError
