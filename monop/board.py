@@ -126,9 +126,8 @@ class Board(gtk.DrawingArea):
 
 	def redraw(self):
 		if self.window is not None:
-			cr = self.window.cairo_create()
-			a = self.get_allocation()
-			self.draw(cr, a.width, a.height)
+			x = self.window.get_geometry()
+			self.window.invalidate_rect((0, 0, x[2], x[3]), True)
 
 	def __init__(self, draw_box = None):
 		gtk.DrawingArea.__init__(self)
