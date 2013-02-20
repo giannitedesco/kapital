@@ -23,6 +23,9 @@ class Client:
 	def quit(self):
 		return
 
+	def auctionupdate(self, xml):
+		self.dumpxml(xml)
+
 	def cardupdate(self, xml):
 		try:
 			owner = int(xml.get('owner', -1))
@@ -41,11 +44,12 @@ class Client:
 			raise MonopError
 
 		if self.disp is None:
-			self.msg('%s: %d: %s\n'%(t, pid, val), ['purple'])
+			self.msg('%s\n'%(text), ['dark blue'])
 		else:
 			self.disp.display(text = text, cleartext = cleartext,
 				clearbuttons = clearbuttons,
 				estateid = estateid)
+			self.msg('%s\n'%(text), ['dark blue'])
 
 		for x in xml.children:
 			if x.name != 'button':
@@ -304,6 +308,7 @@ class Client:
 					'estategroupupdate':self.estategroup,
 					'estateupdate':self.estate,
 					'cardupdate':self.cardupdate,
+					'auctionupdate':self.auctionupdate,
 				}
 				if xml.name != 'monopd':
 					raise MonopError
