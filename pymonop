@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import gobject, gtk
-from board import Board
+from monop import Board
 
 class MainWin(gtk.Window):
 	def destroy(self, *_):
@@ -13,6 +13,17 @@ class MainWin(gtk.Window):
 	def main(self):
 		self.in_main = True
 		gtk.main()
+
+	def draw_box(self, cr, (x, y), boxid):
+		(ascent, descent, height, max_x_advance, max_y_advance) = \
+			cr.font_extents()
+		cr.move_to(x / 20.0, height)
+		cr.show_text('%d'%boxid)
+
+		#cr.move_to(0, y / 5.0)
+		#cr.line_to(x, y / 5.0)
+		#cr.stroke()
+		return
 
 	def __init__(self):
 		gtk.Window.__init__(self, gtk.WINDOW_TOPLEVEL)
@@ -26,7 +37,7 @@ class MainWin(gtk.Window):
 		agr.connect_group(k, m, gtk.ACCEL_VISIBLE, self.destroy)
 		self.add_accel_group(agr)
 
-		self.board = Board()
+		self.board = Board(self.draw_box)
 		self.add(self.board)
 
 		self.show_all()

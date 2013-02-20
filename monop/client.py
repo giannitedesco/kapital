@@ -44,12 +44,12 @@ class Client:
 			raise MonopError
 
 		if self.disp is None:
-			self.msg('%s\n'%(text), ['dark blue'])
+			self.msg('%s\n'%text)
 		else:
 			self.disp.display(text = text, cleartext = cleartext,
 				clearbuttons = clearbuttons,
 				estateid = estateid)
-			self.msg('%s\n'%(text), ['dark blue'])
+			self.msg('%s\n'%text)
 
 		for x in xml.children:
 			if x.name != 'button':
@@ -252,10 +252,12 @@ class Client:
 		self.newturn = False
 		self.ready = False
 
-	def __init__(self, msg, disp = None, nick = 'MrMonopoly'):
+	def __init__(self, msg, disp = None, redraw = None,
+				nick = 'MrMonopoly'):
 		self.msg = msg
 		self.disp = disp
 		self.nick = nick
+		self.redraw = redraw
 		self.abort()
 
 	def dumpxml(self, n, depth = 0):
@@ -325,6 +327,8 @@ class Client:
 				self.msg('Barfed on message:\n', ['red'])
 				self.dumpxml(xml)
 				self.abort()
+			if self.redraw is not None:
+				self.redraw()
 
 		self.sock = LineSock()
 		self.sock.connect('data-in', sock_in)

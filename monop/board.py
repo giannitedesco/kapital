@@ -28,26 +28,35 @@ class Board(gtk.DrawingArea):
 		y = s - (2 * x)
 		
 		boxes = []
-		for i in xrange(0, 8):
-			mins = (x + (i * (y / 8)), y + x)
-			maxs = (x + ((i + 1) * (y / 8)),  s)
+		boxid = 1
+		for i in xrange(8, -1, -1):
+			mins = (x + (i * (y / 9)), y + x)
+			maxs = (x + ((i + 1) * (y / 9)),  s)
 			allfour = (i == 0)
-			boxes.append((mins, maxs, allfour))
-		for i in xrange(0, 8):
-			mins = (x, x + (i * (y / 8)))
-			maxs = (0, x + ((i + 1) * (y / 8)))
+			boxes.append((mins, maxs, allfour, boxid))
+			boxid += 1
+		boxid += 1
+		for i in xrange(8, -1, -1):
+			mins = (x, x + (i * (y / 9)))
+			maxs = (0, x + ((i + 1) * (y / 9)))
 			allfour = (i == 0)
-			boxes.append((mins, maxs, allfour))
-		for i in xrange(0, 8):
-			mins = (x + (i * (y / 8)), x)
-			maxs = (x + ((i + 1) * (y / 8)), 0)
-			allfour = (i == 7)
-			boxes.append((mins, maxs, allfour))
-		for i in xrange(0, 8):
-			mins = (x + y, x + (i * (y / 8)))
-			maxs = (s, x + ((i + 1) * (y / 8)))
-			allfour = (i == 7)
-			boxes.append((mins, maxs, allfour))
+			boxes.append((mins, maxs, allfour, boxid))
+			boxid += 1
+		boxid += 1
+		for i in xrange(0, 9):
+			mins = (x + (i * (y / 9)), x)
+			maxs = (x + ((i + 1) * (y / 9)), 0)
+			allfour = (i == 8)
+			boxes.append((mins, maxs, allfour, boxid))
+			boxid += 1
+		boxid += 1
+		for i in xrange(0, 9):
+			mins = (x + y, x + (i * (y / 9)))
+			maxs = (s, x + ((i + 1) * (y / 9)))
+			allfour = (i == 8)
+			boxes.append((mins, maxs, allfour, boxid))
+			boxid += 1
+		boxid += 1
 
 #		cols = [ \
 #			(0, 0, 0),
@@ -55,11 +64,11 @@ class Board(gtk.DrawingArea):
 #			(0, 1.0, 0),
 #			(1.0, 0, 0)
 #			]
-#		i = 0
 		
+#		i = 0
 		cr.set_source_rgb(0, 0, 0)
-		for (mins,maxs,allfour) in boxes:
-#			if i % 8 == 0:
+		for (mins,maxs,allfour,boxid) in boxes:
+#			if i % 9 == 0:
 #				cr.set_source_rgb(*cols.pop())
 #			i += 1
 
@@ -85,6 +94,9 @@ class Board(gtk.DrawingArea):
 			m = cr.get_matrix()
 			cr.translate(t[0], t[1])
 			cr.rotate(r)
+			if self.draw_box is not None:
+				self.draw_box(cr, sz, boxid)
+			cr.set_source_rgb(0, 0, 0)
 			if allfour:
 				cr.move_to(0, sz[1])
 				cr.line_to(0, 0)
@@ -112,6 +124,13 @@ class Board(gtk.DrawingArea):
 		a = self.get_allocation()
 		self.draw(cr, a.width, a.height)
 
-	def __init__(self):
+	def redraw(self):
+		if self.window is not None:
+			cr = self.window.cairo_create()
+			a = self.get_allocation()
+			self.draw(cr, a.width, a.height)
+
+	def __init__(self, draw_box = None):
 		gtk.DrawingArea.__init__(self)
+		self.draw_box = draw_box
 		self.connect('expose-event', self.expose)
