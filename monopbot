@@ -46,7 +46,6 @@ class MonopDisplay(gtk.VBox):
 		def closure(window, event, cmd):
 			self.cmd(cmd)
 		b = gtk.Button(caption)
-		print 'SENSITIVE', enabled
 		b.set_sensitive(enabled)
 		b.connect('button-press-event', closure, command)
 		self.buttonbar.add(b)
