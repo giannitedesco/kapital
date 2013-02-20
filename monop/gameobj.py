@@ -7,8 +7,6 @@ class GameObj(object):
 		object.__setattr__(self, 'updated', updated)
 		for t in types:
 			self.__fields[t.name] = Field(t, t.default)
-		if self.updated:
-			self.updated(self, None, None)
 
 	def __dir__(self):
 		return self.__fields.keys()

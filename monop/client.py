@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
+import gobject, glib
+
 from linesock import LineSock
 from xmlhelper import parse_xml_string
 from collections import namedtuple
@@ -13,7 +15,18 @@ from estategroup import EstateGroup
 from estate import Estate
 from errors import *
 
-class Client:
+class Client(gobject.GObject):
+	__gsignals__ = {
+		'msg': (gobject.SIGNAL_RUN_LAST,
+			gobject.TYPE_NONE, (gobject.TYPE_STRING,
+						gobject.TYPE_PYOBJECT)),
+		'updated': (gobject.SIGNAL_RUN_LAST,
+			gobject.TYPE_NONE, ()),
+	}
+
+	def msg(self, s, tags = []):
+		self.emit('msg', s, tags)
+
 	def cmd(self, s):
 		if self.sock is None:
 			return
@@ -184,6 +197,10 @@ class Client:
 		elif k == 'can_buyestate' and v:
 			self.msg('BUYING IT, THEY HATIN\n', ['dark green'])
 			self.cmd('.eb')
+		elif k == 'location':
+			self.msg('%s now at %d\n'%(p.name, p.location))
+		elif k == 'image':
+			self.msg('%s now using avatar %s\n'%(p.name, p.image))
 		else:
 			#self.msg('>> %s %s -> %s\n'%(p.name, k, v), ['purple'])
 			return
@@ -212,8 +229,10 @@ class Client:
 			if self.nick == p.name:
 				self.msg('I AM FIRST\n', ['dark green'])
 				self.cmd('.gn%s'%'london')
+				self.cmd('.pi%s'%'hamburger.png')
 			else:
 				self.msg('I AM SECOND\n', ['red'])
+				self.cmd('.pi%s'%'lips.png')
 
 		if self.newturn:
 			if self.current.playerid == self.pid:
@@ -252,12 +271,10 @@ class Client:
 		self.newturn = False
 		self.ready = False
 
-	def __init__(self, msg, disp = None, redraw = None,
-				nick = 'MrMonopoly'):
-		self.msg = msg
+	def __init__(self, disp = None, nick = 'MrMonopoly'):
+		gobject.GObject.__init__(self)
 		self.disp = disp
 		self.nick = nick
-		self.redraw = redraw
 		self.abort()
 
 	def dumpxml(self, n, depth = 0):
@@ -327,8 +344,7 @@ class Client:
 				self.msg('Barfed on message:\n', ['red'])
 				self.dumpxml(xml)
 				self.abort()
-			if self.redraw is not None:
-				self.redraw()
+			self.emit('updated')
 
 		self.sock = LineSock()
 		self.sock.connect('data-in', sock_in)
@@ -336,3 +352,5 @@ class Client:
 		self.sock.connect('disconnected', disconnected)
 		self.sock.connect('error', sockerr)
 		self.sock.connect_to(host, port)
+
+gobject.type_register(Client)

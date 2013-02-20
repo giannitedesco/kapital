@@ -91,7 +91,7 @@ class Board(gtk.DrawingArea):
 					t = mins
 					r = math.pi / 2
 
-			m = cr.get_matrix()
+			cr.save()
 			cr.translate(t[0], t[1])
 			cr.rotate(r)
 			if self.draw_box is not None:
@@ -105,7 +105,7 @@ class Board(gtk.DrawingArea):
 			cr.line_to(sz[0], 0)
 			cr.line_to(sz[0], sz[1])
 			cr.stroke()
-			cr.set_matrix(m)
+			cr.restore()
 
 
 	def draw(self, cr, w, h):

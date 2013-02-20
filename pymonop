@@ -1,7 +1,9 @@
 #!/usr/bin/python
 
 import gobject, gtk
+from cairo import ImageSurface
 from monop import Board
+from os import listdir
 
 class MainWin(gtk.Window):
 	def destroy(self, *_):
@@ -14,11 +16,33 @@ class MainWin(gtk.Window):
 		self.in_main = True
 		gtk.main()
 
+	def draw_img(self, cr, img, x, y, w, h):
+		ix = img.get_width()
+		iy = img.get_height()
+
+		cr.save()
+		cr.rectangle(x, y, w, h)
+		cr.clip()
+		cr.new_path()
+
+		cr.translate(x, y)
+		cr.scale(w/ix, h/iy);
+		cr.set_source_surface(img, 0, 0)
+		cr.paint()
+		cr.restore()
+
 	def draw_box(self, cr, (x, y), boxid):
 		(ascent, descent, height, max_x_advance, max_y_advance) = \
 			cr.font_extents()
 		cr.move_to(x / 20.0, height)
 		cr.show_text('%d'%boxid)
+
+		img = self.avatar['eyeball.png']
+		bx = x / 2
+		by = y / 2
+		self.draw_img(cr, img, bx - (bx / 2),
+					by - (by / 2),
+					bx, by)
 
 		#cr.move_to(0, y / 5.0)
 		#cr.line_to(x, y / 5.0)
@@ -36,6 +60,11 @@ class MainWin(gtk.Window):
 		(k, m) = gtk.accelerator_parse('<Control>Q')
 		agr.connect_group(k, m, gtk.ACCEL_VISIBLE, self.destroy)
 		self.add_accel_group(agr)
+
+		self.avatar = {}
+		for x in listdir('avatars'):
+			surf = ImageSurface.create_from_png('avatars/%s'%x)
+			self.avatar[x] = surf
 
 		self.board = Board(self.draw_box)
 		self.add(self.board)

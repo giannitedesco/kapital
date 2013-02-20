@@ -149,9 +149,11 @@ class MainWin(gtk.Window):
 			cr.stroke()
 		return
 
-	def redraw(self):
+	def redraw(self, cl):
 		self.board.redraw()
-		return
+
+	def msg(self, cl, *_):
+		self.log.msg(*_)
 
 	def __init__(self):
 		gtk.Window.__init__(self, gtk.WINDOW_TOPLEVEL)
@@ -187,7 +189,10 @@ class MainWin(gtk.Window):
 		vb.pack_start(entry, False, False)
 
 		self.disp = MonopDisplay(self.cmd)
-		self.client = MonopClient(self.log.msg, self.disp, self.redraw)
+		self.client = MonopClient(self.disp)
+
+		self.client.connect('msg', self.msg)
+		self.client.connect('updated', self.redraw)
 
 		hb = gtk.HPaned()
 		hb.add1(vb)
