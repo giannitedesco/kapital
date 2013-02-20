@@ -24,8 +24,20 @@ class Client:
 		return
 
 	def display(self, xml):
-		self.dumpxml(xml)
-		return
+		try:
+			text = xml.get('text', '')
+			cleartext = bool(int(xml.get('cleartext', 0)))
+			clearbuttons = bool(int(xml.get('clearbuttons', 0)))
+			estateid = int(xml.get('estateid', -1))
+		except KeyError, ValueError:
+			raise MonopError
+
+		if self.disp is None:
+			self.msg('%s: %d: %s\n'%(t, pid, val), ['purple'])
+		else:
+			self.disp(text = text, cleartext = cleartext,
+				clearbuttons = clearbuttons,
+				estateid = estateid)
 
 	def estategroup(self, xml):
 		try:
@@ -139,7 +151,7 @@ class Client:
 			self.estates ={}
 
 	def on_player_update(self, p, k, v):
-		if k in ['hasturn','can_roll'] and v:
+		if k in ['hasturn', 'can_roll'] and v:
 			self.current = p
 			self.newturn = True
 
@@ -153,7 +165,8 @@ class Client:
 			self.msg('BUYING IT\n', ['dark green'])
 			self.cmd('.eb')
 		else:
-			self.msg('>> %s %s -> %s\n'%(p.name, k, v), ['purple'])
+			#self.msg('>> %s %s -> %s\n'%(p.name, k, v), ['purple'])
+			return
 
 	def do_turn(self, i):
 		if i.jailed:
@@ -219,8 +232,9 @@ class Client:
 		self.newturn = False
 		self.ready = False
 
-	def __init__(self, msg, nick = 'MrMonopoly'):
+	def __init__(self, msg, disp = None, nick = 'MrMonopoly'):
 		self.msg = msg
+		self.disp = disp
 		self.nick = nick
 		self.abort()
 

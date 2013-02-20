@@ -3,6 +3,39 @@
 import gobject, gtk, pango
 from monop import Client as MonopClient
 
+class MonopDisplay(gtk.VBox):
+	def __init__(self):
+		gtk.VBox.__init__(self)
+		self.text = gtk.TextView()
+		self.buttonbar = gtk.HBox()
+		self.pack_start(self.text, True, True)
+		self.pack_start(self.buttonbar, False, False)
+
+		self.text.set_editable(False)
+		self.text.set_cursor_visible(False)
+		self.text.set_wrap_mode(gtk.WRAP_WORD)
+		self.text.set_cursor_visible(False)
+		buf = self.text.get_buffer()
+		i = buf.get_iter_at_offset(0)
+		self.end = buf.create_mark(None, i, left_gravity = False)
+
+	def display(self, text = '', cleartext = False,
+			clearbuttons = False, estateid = -1):
+		buf = self.text.get_buffer()
+
+		if cleartext:
+			buf.set_text('')
+			i = buf.get_iter_at_offset(0)
+			buf.move_mark(self.end, i)
+
+		i = buf.get_iter_at_offset(buf.get_char_count())
+		buf.insert(i, text + '\n')
+
+		i = buf.get_iter_at_offset(buf.get_char_count())
+		buf.move_mark(self.end, i)
+		self.text.scroll_mark_onscreen(self.end)
+		buf.place_cursor(i)
+
 class BotLog(gtk.TextView):
 	def __setup_tags(self, buf):
 		tag = buf.create_tag('font')
@@ -27,6 +60,10 @@ class BotLog(gtk.TextView):
 		self.set_wrap_mode(gtk.WRAP_WORD)
 		self.__setup_tags(self.get_buffer())
 
+		buf = self.get_buffer()
+		i = buf.get_iter_at_offset(0)
+		self.end = buf.create_mark(None, i, left_gravity = False)
+
 
 	def msg(self, msg, tags = []):
 		from sys import stdout
@@ -34,20 +71,19 @@ class BotLog(gtk.TextView):
 		tags.append('font')
 		buf = self.get_buffer()
 		i = buf.get_iter_at_offset(buf.get_char_count())
-		buf.place_cursor(i)
 		buf.insert_with_tags_by_name(i, msg, *tags)
+
 		i = buf.get_iter_at_offset(buf.get_char_count())
+		buf.move_mark(self.end, i)
+		self.scroll_mark_onscreen(self.end)
 		buf.place_cursor(i)
 
 		stdout.write(msg)
-		if not '\n' in msg:
-			return
-
-		self.scroll_to_iter(i, 0.0)
 
 class MainWin(gtk.Window):
 	def destroy(self, *_):
-		self.client.quit()
+		if self.client is not None:
+			self.client.quit()
 		gtk.Window.destroy(self)
 		if self.in_main:
 			gtk.mainquit()
@@ -65,6 +101,7 @@ class MainWin(gtk.Window):
 
 	def __init__(self):
 		gtk.Window.__init__(self, gtk.WINDOW_TOPLEVEL)
+		self.client = None
 		self.in_main = False
 		self.connect('destroy', self.destroy)
 		self.set_default_size(640, 480)
@@ -77,12 +114,9 @@ class MainWin(gtk.Window):
 		agr.connect_group(k, m, gtk.ACCEL_VISIBLE, self.destroy)
 		self.add_accel_group(agr)
 
-		self.log = BotLog()
-		self.client = MonopClient(self.log.msg)
-		self.client.connect_to('localhost', 11234)
-
 		scr = gtk.ScrolledWindow()
-		scr.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+		scr.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
+		self.log = BotLog()
 		scr.add(self.log)
 
 		entry = gtk.Entry()
@@ -92,8 +126,16 @@ class MainWin(gtk.Window):
 		vb.pack_start(scr, True, True)
 		vb.pack_start(entry, False, False)
 
-		self.add(vb)
+		self.disp = MonopDisplay()
+		hb = gtk.HPaned()
+		hb.add1(vb)
+		hb.add2(self.disp)
+
+		self.add(hb)
 		self.show_all()
+
+		self.client = MonopClient(self.log.msg, self.disp.display)
+		self.client.connect_to('localhost', 11234)
 
 if __name__ == '__main__':
 	x = MainWin()
