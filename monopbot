@@ -120,21 +120,6 @@ class MainWin(gtk.Window):
 		if self.client is not None:
 			self.client.cmd(cmd)
 
-	def draw_img(self, cr, img, x, y, w, h):
-		ix = img.get_width()
-		iy = img.get_height()
-
-		cr.save()
-		cr.rectangle(x, y, w, h)
-		cr.clip()
-		cr.new_path()
-
-		cr.translate(x, y)
-		cr.scale(w/ix, h/iy);
-		cr.set_source_surface(img, 0, 0)
-		cr.paint()
-		cr.restore()
-
 	def parse_rgb(self, color):
 		if len(color) < 7 or color[0] != '#':
 			return None
@@ -158,6 +143,33 @@ class MainWin(gtk.Window):
 		cr.line_to(x, y / 5.0)
 		cr.stroke()
 
+	def draw_img(self, cr, img, x, y, w, h):
+		ix = img.get_width()
+		iy = img.get_height()
+
+		cr.save()
+		cr.rectangle(x, y, w, h)
+		cr.clip()
+		cr.new_path()
+
+		cr.translate(x, y)
+		cr.scale(w/ix, h/iy);
+		cr.set_source_surface(img, 0, 0)
+		cr.paint()
+		cr.restore()
+
+	def draw_player_tokens(self, cr, x, y, p = []):
+		cr.save()
+		cr.translate(0, y / 5.0)
+		y -= y / 5.0
+
+		img = map(lambda p:p.image, p)
+
+		for tok in img:
+			self.draw_img(cr, self.avatar[tok], 0, 0, x, y)
+		cr.restore()
+		return
+
 	def draw_box(self, cr, (x, y), boxid):
 		(ascent, descent, height, max_x_advance, max_y_advance) = \
 			cr.font_extents()
@@ -175,14 +187,9 @@ class MainWin(gtk.Window):
 			self.draw_color_band(cr, x, y, *col)
 
 		# draw player tokens
-		# we need corner pieces to be called here
 		p = filter(lambda x:x.location == boxid,
 				self.client.players.values())
-		p = map(lambda p:p.image, p)
-		for image in p:
-			# space out and draw avatars
-			cr.move_to(x / 20.0, height * 2)
-			cr.show_text('%s'%image)
+		self.draw_player_tokens(cr, x, y, p)
 
 	def redraw(self, cl):
 		self.board.redraw()
