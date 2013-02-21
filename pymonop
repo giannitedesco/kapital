@@ -16,9 +16,15 @@ class MainWin(gtk.Window):
 		self.in_main = True
 		gtk.main()
 
-	def draw_img(self, cr, img, x, y, w, h):
+	def draw_img(self, cr, img, x, y, w, h, scale = True):
 		ix = img.get_width()
 		iy = img.get_height()
+
+		if scale:
+			r = min(w, h)
+			x += (w - r) / 2
+			y += (h - r) / 2
+			w = h = r
 
 		cr.save()
 		cr.rectangle(x, y, w, h)
@@ -37,7 +43,7 @@ class MainWin(gtk.Window):
 		cr.move_to(x / 20.0, height)
 		cr.show_text('%d'%boxid)
 
-		img = self.avatar['eyeball.png']
+		img = self.avatar['bomb.png']
 		bx = x / 2
 		by = y / 2
 		self.draw_img(cr, img, bx - (bx / 2),

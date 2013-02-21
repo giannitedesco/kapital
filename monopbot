@@ -143,9 +143,16 @@ class MainWin(gtk.Window):
 		cr.line_to(x, y / 5.0)
 		cr.stroke()
 
-	def draw_img(self, cr, img, x, y, w, h):
+	def draw_img(self, cr, img, x, y, w, h, scale = True):
 		ix = img.get_width()
 		iy = img.get_height()
+
+		if scale:
+			# FIXME: assume square
+			r = min(w, h)
+			x += (w - r) / 2
+			y += (h - r) / 2
+			w = h = r
 
 		cr.save()
 		cr.rectangle(x, y, w, h)
@@ -158,38 +165,55 @@ class MainWin(gtk.Window):
 		cr.paint()
 		cr.restore()
 
+	def draw_owner(self, cr, x, y, p, band = True):
+		cr.save()
+		cr.translate(x, y / 5.0)
+		y = y / 5.0
+		space = (x - y) / 2.0
+		self.draw_img(cr, self.avatar[p.image], space, 0, y, y)
+		cr.restore()
+		return
+
 	def draw_player_tokens(self, cr, x, y, p = []):
 		cr.save()
-		cr.translate(0, y / 5.0)
-		y -= y / 5.0
+		cr.translate(0, y / 2.5)
+		y -= y / 2.5
 
 		img = map(lambda p:p.image, p)
 
 		for tok in img:
 			self.draw_img(cr, self.avatar[tok], 0, 0, x, y)
 		cr.restore()
-		return
 
 	def draw_box(self, cr, (x, y), boxid):
-		(ascent, descent, height, max_x_advance, max_y_advance) = \
-			cr.font_extents()
-
 		if not self.client.estates.has_key(boxid):
+			(ascent, descent, height,
+					max_x_advance, max_y_advance) = \
+				cr.font_extents()
 			cr.move_to(x / 20.0, height)
 			cr.show_text('%d'%boxid)
 			return
 
+		# look at the estate
 		e = self.client.estates[boxid]
-		g = self.client.groups.get(e.group, None)
 
+		# grab the estate group color
+		g = self.client.groups.get(e.group, None)
 		col = self.parse_rgb(e.color)
 		if col is not None:
 			self.draw_color_band(cr, x, y, *col)
+			band = True
+		else:
+			band = False
 
 		# draw player tokens
 		p = filter(lambda x:x.location == boxid,
 				self.client.players.values())
 		self.draw_player_tokens(cr, x, y, p)
+
+		p = self.client.players.get(e.owner, None)
+		if p is not None:
+			self.draw_owner(cr, x, y, p, band)
 
 	def redraw(self, cl):
 		self.board.redraw()

@@ -6,7 +6,7 @@ class Player(GameObj):
 			FieldTypeInt('game', -1),
 			FieldTypeStr('cookie'),
 			FieldTypeStr('name'),
-			FieldTypeStr('image'),
+			FieldTypeStr('image', 'badge.png'),
 			FieldTypeStr('money'),
 			FieldTypeInt('location'),
 			FieldTypeInt('doublecount'),

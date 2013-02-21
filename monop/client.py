@@ -184,6 +184,7 @@ class Client(gobject.GObject):
 			self.estates ={}
 
 	def on_player_update(self, p, k, v):
+		self.msg('>> %s %s -> %s\n'%(p.name, k, v), ['purple'])
 		if k in ['hasturn', 'can_roll'] and v:
 			self.current = p
 			self.newturn = True
@@ -202,7 +203,6 @@ class Client(gobject.GObject):
 		elif k == 'image':
 			self.msg('%s now using avatar %s\n'%(p.name, p.image))
 		else:
-			#self.msg('>> %s %s -> %s\n'%(p.name, k, v), ['purple'])
 			return
 
 	def do_turn(self, i):
