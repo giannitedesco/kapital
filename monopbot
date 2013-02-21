@@ -143,7 +143,7 @@ class MainWin(gtk.Window):
 		cr.line_to(x, y / 5.0)
 		cr.stroke()
 
-	def draw_img(self, cr, img, x, y, w, h, scale = True):
+	def draw_img(self, cr, img, x, y, w, h, alpha = 1.0, scale = True):
 		ix = img.get_width()
 		iy = img.get_height()
 
@@ -162,16 +162,18 @@ class MainWin(gtk.Window):
 		cr.translate(x, y)
 		cr.scale(w/ix, h/iy);
 		cr.set_source_surface(img, 0, 0)
-		cr.paint()
+		cr.paint_with_alpha(alpha)
 		cr.restore()
 
-	def draw_owner(self, cr, x, y, p, band):
+	def draw_owner(self, cr, x, y, p, mortgaged, band):
 		cr.save()
 		if band:
 			cr.translate(0, y / 5.0)
 		y = y / 5.0
 		space = (x - y) / 2.0
-		self.draw_img(cr, self.avatar[p.image], space, 0, y, y)
+		self.draw_img(cr, self.avatar[p.image],
+				space, 0, y, y,
+				alpha = mortgaged and 0.5 or 1.0)
 		cr.restore()
 		return
 
@@ -215,7 +217,7 @@ class MainWin(gtk.Window):
 		# draw ownership token
 		p = self.client.players.get(e.owner, None)
 		if p is not None and e.can_be_owned:
-			self.draw_owner(cr, x, y, p, band)
+			self.draw_owner(cr, x, y, p, e.mortgaged, band)
 
 	def redraw(self, cl):
 		self.board.redraw()
