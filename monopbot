@@ -165,9 +165,10 @@ class MainWin(gtk.Window):
 		cr.paint()
 		cr.restore()
 
-	def draw_owner(self, cr, x, y, p, band = True):
+	def draw_owner(self, cr, x, y, p, band):
 		cr.save()
-		cr.translate(x, y / 5.0)
+		if band:
+			cr.translate(0, y / 5.0)
 		y = y / 5.0
 		space = (x - y) / 2.0
 		self.draw_img(cr, self.avatar[p.image], space, 0, y, y)
@@ -211,8 +212,9 @@ class MainWin(gtk.Window):
 				self.client.players.values())
 		self.draw_player_tokens(cr, x, y, p)
 
+		# draw ownership token
 		p = self.client.players.get(e.owner, None)
-		if p is not None:
+		if p is not None and e.can_be_owned:
 			self.draw_owner(cr, x, y, p, band)
 
 	def redraw(self, cl):
