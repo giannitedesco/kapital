@@ -52,7 +52,8 @@ wire. The following patch fixes the issue.
 ```
 
 ## Further work
-The bot needs to handle auctions and
+The bot needs to handle auctions, going in to debt due to chance/community
+chest cards and trading.
 
 ## Dependencies:
  - Python 2.7
