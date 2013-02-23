@@ -25,7 +25,8 @@ class GameObj(object):
 			if self.updated is not None:
 				self.updated(self, attr, v)
 		else:
-			raise AttributeError, '%s not found'%attr
+			object.__setattr__(self,attr,val)
+			#raise AttributeError, '%s not found'%attr
 
 	def update(self, xml):
 		for (k,v) in xml.attrib.items():
@@ -34,3 +35,15 @@ class GameObj(object):
 			except AttributeError:
 				print 'BAD ATTRIBUTE', k, v
 				raise AttributeError
+	def __str__(self):
+		try:
+			name = self.name
+			if not len(str(name)):
+				raise AttributeError
+		except AttributeError:
+			return '%s(%s)'%(type(self).__name__,
+				' '.join(lambda k,v:'%s=%s'%(k,v.value),
+					self.__fields.values()))
+		return '%s(%s)'%(type(self).__name__, name)
+	def __repr__(self):
+		return str(self)

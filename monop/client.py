@@ -98,7 +98,8 @@ class Client(gobject.GObject):
 		#self.dumpxml(xml)
 
 		if e.group >= 0 and self.groups.has_key(e.group):
-			self.groups[e.group].estates.union([e.estateid])
+			g = self.groups[e.group]
+			g.estates = g.estates.union([e.estateid])
 
 	def configupdate(self, xml):
 		#self.dumpxml(xml)
@@ -215,26 +216,95 @@ class Client(gobject.GObject):
 		return filter(lambda x:x.owner == p.playerid,
 				self.estates.values())
 
-	def raise_cash(self, p, target):
-		self.msg('raise %d bucks\n'%target)
+	def split_hand(self, hand):
+		out = []
+
+		# first build a set of estates in our hand
+		s = set()
+		s = s.union(map(lambda x:x.estateid, hand))
+
+		# keep track of properties part of monopolies
+		mprops = set()
+
+		for g in self.groups.values():
+			# if the intersection of estates in a group is
+			# equal to the set of all estates in a group then
+			# we have a monopoly
+			if s.intersection(g.estates) == g.estates:
+				# so lets lookup all the estate objects
+				e = map(lambda x:self.estates[x], g.estates)
+
+				# sort by estateid
+				e.sort()
+
+				# then append them to our results
+				out.append(e)
+
+				# and keep track of what we appended
+				mprops |= set(e)
+
+		# so that we can build a list of the remainder
+		misc = map(lambda x:self.estates[x],s - mprops)
+
+		return (out, misc)
+
+	def do_raise_cash(self, target, hand):
 		raised = 0
 
-		hand = self.hand(p)
-		for e in hand:
-			self.msg('I own: [%d]: %s\n'%(e.estateid, e.name),
-				[e.mortgaged and 'red' or 'dark green'])
+		(monopolies, crap) = self.split_hand(hand)
 
-		for e in hand:
-			if raised >= target:
-				continue
-			if e.mortgaged:
-				continue
-			if e.houses > 0:
+		# first try mortgage properties that are not
+		# part of monopolies
+		for e in crap:
+			if raised >= target or e.mortgaged or e.houses > 0:
 				continue
 			self.cmd('.em%d'%e.estateid)
 			raised += e.mortgageprice
 
-		return raised >= target
+		if raised >= target:
+			return raised
+
+		# now try mortgage undeveloped monopolies
+		monoplist = sum(monopolies, [])
+		for e in monoplist:
+			if raised >= target or e.mortgaged or e.houses > 0:
+				continue
+			self.cmd('.em%d'%e.estateid)
+			raised += e.mortgageprice
+
+		if raised >= target:
+			return raised
+
+		# now to sell houses, broken for even dev rule
+		#for e in monoplist:
+		#	if raised >= target or e.mortgaged:
+		#		continue
+		#	self.cmd('.hs%d'%e.estateid)
+		#	raised += e.mortgageprice
+
+		# shouldn't really be possible, we're bust
+		return raised
+
+	def raise_cash(self, p, target):
+		hand = self.hand(p)
+		for e in hand:
+			self.msg('I own: [%d]: %s\n'%(e.estateid, e.name),
+				[e.mortgaged and 'red' or 'dark green'])
+		self.msg('must raise %d bucks!\n'%target)
+
+		raised = 0
+		t = target
+		while raised < target:
+			r = self.do_raise_cash(t, hand)
+			raised += r
+			t -= r
+			if r <= 0:
+				self.msg('only raised %d bucks\n'%raised,
+					['bold','red'])
+				return False
+
+		self.msg('raised %d bucks\n'%raised, ['bold','dark green'])
+		return True
 
 	def handle_debt(self, p):
 		self.msg('handle debts\n')
@@ -306,6 +376,18 @@ class Client(gobject.GObject):
 			self.cmd('.em%d'%e.estateid)
 			money -= e.unmortgageprice
 
+		# buy houses
+		(monopolies, misc) = self.split_hand(hand)
+		for m in monopolies:
+			tc = sum(map(lambda x:x.houseprice, m))
+			if money < reserve + tc:
+				continue
+			self.msg('monopoly: buying a level\n',
+					['bold', 'dark blue'])
+			for e in m:
+				self.msg(' - %r\n'%e, ['bold', 'dark blue'])
+				self.cmd('.hb%d'%e.estateid)
+
 	def do_turn(self, i):
 		if i.hasdebt:
 			self.handle_debt(i)
@@ -313,6 +395,8 @@ class Client(gobject.GObject):
 		elif i.can_buyestate:
 			self.can_buy(i)
 		elif i.jailed:
+			if i.money < 50:
+				self.raise_cash(i, 50 - i.money)
 			self.handle_jail()
 		elif len(self.buttons) and not i.can_buyestate:
 			self.msg('%r\n'%self.buttons, ['red'])

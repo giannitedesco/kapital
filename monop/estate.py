@@ -35,3 +35,10 @@ class Estate(GameObj):
 			FieldTypeStr('name')]
 	def __init__(self):
 		GameObj.__init__(self, Estate.__types)
+	def __cmp__(self, other):
+		if self.estateid < other.estateid:
+			return -1
+		elif self.estateid > other.estateid:
+			return 1
+		else:
+			return 0
