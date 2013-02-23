@@ -259,6 +259,7 @@ class Client(gobject.GObject):
 			if raised >= target or e.mortgaged or e.houses > 0:
 				continue
 			self.cmd('.em%d'%e.estateid)
+			e.mortgaged = not e.mortgaged
 			raised += e.mortgageprice
 
 		if raised >= target:
@@ -270,17 +271,25 @@ class Client(gobject.GObject):
 			if raised >= target or e.mortgaged or e.houses > 0:
 				continue
 			self.cmd('.em%d'%e.estateid)
+			e.mortgaged = not e.mortgaged
 			raised += e.mortgageprice
 
 		if raised >= target:
 			return raised
 
-		# now to sell houses, broken for even dev rule
-		#for e in monoplist:
-		#	if raised >= target or e.mortgaged:
-		#		continue
-		#	self.cmd('.hs%d'%e.estateid)
-		#	raised += e.mortgageprice
+		# now to sell houses, sell entire rows at once
+		# just to keep it simple
+		for g in monopolies:
+			if True in map(lambda x:x.mortgaged,g):
+				continue
+			if raised >= target:
+				break
+			for e in g:
+				if e.houses <= 0:
+					continue
+				self.cmd('.hs%d'%e.estateid)
+				e.houses -= 1
+				raised += e.sellhouseprice
 
 		# shouldn't really be possible, we're bust
 		return raised
@@ -295,6 +304,7 @@ class Client(gobject.GObject):
 		raised = 0
 		t = target
 		while raised < target:
+			hand = self.hand(p)
 			r = self.do_raise_cash(t, hand)
 			raised += r
 			t -= r
@@ -306,10 +316,28 @@ class Client(gobject.GObject):
 		self.msg('raised %d bucks\n'%raised, ['bold','dark green'])
 		return True
 
+	def due(self, p, e):
+		self.msg('due %r\n'%e)
+		if e.owner == p.playerid:
+			self.msg('we own this?!\n')
+			return 0
+		price = getattr(e, 'rent%d'%e.houses)
+		if price >= 0:
+			self.msg('so that\'s %d\n'%price)
+			return price
+		if e.tax:
+			self.msg('it\'s a tax of %%d\n'%e.tax)
+			return e.tax
+		return 0
+
 	def handle_debt(self, p):
 		self.msg('handle debts\n')
-		self.raise_cash(p, 100)
-		return
+		e = self.estates[p.location]
+		due = self.due(p, e)
+		if due <= 0:
+			self.msg('not sure what to do\n')
+			due = 100
+		self.raise_cash(p, due)
 
 	def can_buy(self, p):
 		e = self.estates[p.location]
@@ -374,6 +402,7 @@ class Client(gobject.GObject):
 				continue
 
 			self.cmd('.em%d'%e.estateid)
+			e.mortgaged = not e.mortgaged
 			money -= e.unmortgageprice
 
 		# buy houses
@@ -385,8 +414,11 @@ class Client(gobject.GObject):
 			self.msg('monopoly: buying a level\n',
 					['bold', 'dark blue'])
 			for e in m:
+				if e.houses >= 5:
+					continue
 				self.msg(' - %r\n'%e, ['bold', 'dark blue'])
 				self.cmd('.hb%d'%e.estateid)
+				e.houses += 1
 
 	def do_turn(self, i):
 		if i.hasdebt:
