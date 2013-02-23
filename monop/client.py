@@ -191,7 +191,7 @@ class Client(gobject.GObject):
 			self.abortgame()
 
 	def on_player_update(self, p, k, v):
-		if k in ['hasturn', 'can_buyestate', 
+		if k in ['hasturn', 'can_buyestate', 'hasdebt',
 				'can_roll', 'canrollagain'] and v:
 			if self.current != p or p.hasturn:
 				self.newturn = True
@@ -217,9 +217,24 @@ class Client(gobject.GObject):
 
 	def raise_cash(self, p, target):
 		self.msg('raise %d bucks\n'%target)
-		for e in self.hand(p):
+		raised = 0
+
+		hand = self.hand(p)
+		for e in hand:
 			self.msg('I own: [%d]: %s\n'%(e.estateid, e.name),
 				[e.mortgaged and 'red' or 'dark green'])
+
+		for e in hand:
+			if raised >= target:
+				continue
+			if e.mortgaged:
+				continue
+			if e.houses > 0:
+				continue
+			self.cmd('.em%d'%e.estateid)
+			raised += e.mortgageprice
+
+		return raised >= target
 
 	def handle_debt(self, p):
 		self.msg('handle debts\n')
@@ -276,11 +291,25 @@ class Client(gobject.GObject):
 			self.cmd('.T$')
 
 	def manage_estates(self, p):
-		return
+		money = p.money
+		hand = self.hand(p)
+
+		# unmortgage properties
+		reserve = 200
+		for e in hand:
+			if not e.mortgaged:
+				continue
+
+			if money < e.unmortgageprice + reserve:
+				continue
+
+			self.cmd('.em%d'%e.estateid)
+			money -= e.unmortgageprice
 
 	def do_turn(self, i):
 		if i.hasdebt:
 			self.handle_debt(i)
+			self.roll()
 		elif i.can_buyestate:
 			self.can_buy(i)
 		elif i.jailed:
