@@ -156,7 +156,7 @@ class Client(gobject.GObject):
 		if g.master == self.pid and g.description != 'robotwar':
 			self.msg('I AM MASTER, SETTING NAME\n', ['dark green'])
 			self.cmd('.gd%s'%'robotwar')
-		elif g.master == self.pid and g.players >= 2 \
+		elif g.master == self.pid and g.players >= 3 \
 				and g.status == 'config':
 			self.msg('I AM MASTER, STARTING GAME\n', ['dark green'])
 			self.cmd('.gs')
