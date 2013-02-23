@@ -34,7 +34,7 @@ time whenever it can.
 This has been tested against monopd 0.9.3. There is a bug in monopd on 64bit
 builds which causes incorrect estate prices to be sent to the client. This
 causes erroneous behaviour in the bot which relies on the correct values,
-unlike a human player who can read the descripting display text sent over the
+unlike a human player who can read the descriptive display text sent over the
 wire. The following patch fixes the issue.
 
 ```diff
