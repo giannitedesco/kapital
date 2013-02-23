@@ -6,3 +6,4 @@ class EstateGroup(GameObj):
 			FieldTypeStr('name')]
 	def __init__(self):
 		GameObj.__init__(self, EstateGroup.__types)
+		object.__setattr__(self, 'estates', set())

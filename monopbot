@@ -63,7 +63,9 @@ class BotLog(gtk.TextView):
 
 		for x in ['red', 'blue', 'green',
 				'cyan', 'magenta', 'yellow',
-				'purple', 'black',
+				'purple', 'black', 'dark gray',
+				'dim gray', 'maroon', 'orange',
+				'goldenrod',
 				'dark blue', 'dark green']:
 			tag = buf.create_tag(x)
 			tag.set_property('foreground', x)
