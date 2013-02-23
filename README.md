@@ -42,13 +42,13 @@ wire. The following patch fixes the issue.
 +++ b/src/game.cpp	2013-02-23 01:55:28.937479591 +0000
 @@ -2138,7 +2138,7 @@
  				color = estateGroup->getStringProperty("color");
-				 		}
-						 
-						 -		p->ioWrite("<estateupdate estateid=\"%d\" color=\"%s\" bgcolor=\"%s\" owner=\"%d\" houseprice=\"%d\" group=\"%d\" can_be_owned=\"%d\" can_toggle_mortgage=\"%d\" can_buy_houses=\"%d\" can_sell_houses=\"%d\" price=\"%ld\" rent0=\"%d\" rent1=\"%d\" rent2=\"%d\" rent3=\"%d\" rent4=\"%d\" rent5=\"%d\"/>", eTmp->id(), color.c_str(), bgColor.c_str(), (eTmp->owner() ? eTmp->owner()->id() : -1), eTmp->housePrice(), eTmp->group() ? eTmp->group()->id() : -1, eTmp->canBeOwned(), eTmp->canToggleMortgage(p), eTmp->canBuyHouses(p), eTmp->canSellHouses(p), eTmp->price(), eTmp->rentByHouses(0), eTmp->rentByHouses(1), eTmp->rentByHouses(2), eTmp->rentByHouses(3), eTmp->rentByHouses(4), eTmp->rentByHouses(5));
-						 +		p->ioWrite("<estateupdate estateid=\"%d\" color=\"%s\" bgcolor=\"%s\" owner=\"%d\" houseprice=\"%d\" group=\"%d\" can_be_owned=\"%d\" can_toggle_mortgage=\"%d\" can_buy_houses=\"%d\" can_sell_houses=\"%d\" price=\"%d\" rent0=\"%d\" rent1=\"%d\" rent2=\"%d\" rent3=\"%d\" rent4=\"%d\" rent5=\"%d\"/>", eTmp->id(), color.c_str(), bgColor.c_str(), (eTmp->owner() ? eTmp->owner()->id() : -1), eTmp->housePrice(), eTmp->group() ? eTmp->group()->id() : -1, eTmp->canBeOwned(), eTmp->canToggleMortgage(p), eTmp->canBuyHouses(p), eTmp->canSellHouses(p), eTmp->price(), eTmp->rentByHouses(0), eTmp->rentByHouses(1), eTmp->rentByHouses(2), eTmp->rentByHouses(3), eTmp->rentByHouses(4), eTmp->rentByHouses(5));
-						  		p->ioWrite(eTmp->oldXMLUpdate(p, true));
-								 	}
-									 }
+ 		}
+ 
+-		p->ioWrite("<estateupdate estateid=\"%d\" color=\"%s\" bgcolor=\"%s\" owner=\"%d\" houseprice=\"%d\" group=\"%d\" can_be_owned=\"%d\" can_toggle_mortgage=\"%d\" can_buy_houses=\"%d\" can_sell_houses=\"%d\" price=\"%ld\" rent0=\"%d\" rent1=\"%d\" rent2=\"%d\" rent3=\"%d\" rent4=\"%d\" rent5=\"%d\"/>", eTmp->id(), color.c_str(), bgColor.c_str(), (eTmp->owner() ? eTmp->owner()->id() : -1), eTmp->housePrice(), eTmp->group() ? eTmp->group()->id() : -1, eTmp->canBeOwned(), eTmp->canToggleMortgage(p), eTmp->canBuyHouses(p), eTmp->canSellHouses(p), eTmp->price(), eTmp->rentByHouses(0), eTmp->rentByHouses(1), eTmp->rentByHouses(2), eTmp->rentByHouses(3), eTmp->rentByHouses(4), eTmp->rentByHouses(5));
++		p->ioWrite("<estateupdate estateid=\"%d\" color=\"%s\" bgcolor=\"%s\" owner=\"%d\" houseprice=\"%d\" group=\"%d\" can_be_owned=\"%d\" can_toggle_mortgage=\"%d\" can_buy_houses=\"%d\" can_sell_houses=\"%d\" price=\"%d\" rent0=\"%d\" rent1=\"%d\" rent2=\"%d\" rent3=\"%d\" rent4=\"%d\" rent5=\"%d\"/>", eTmp->id(), color.c_str(), bgColor.c_str(), (eTmp->owner() ? eTmp->owner()->id() : -1), eTmp->housePrice(), eTmp->group() ? eTmp->group()->id() : -1, eTmp->canBeOwned(), eTmp->canToggleMortgage(p), eTmp->canBuyHouses(p), eTmp->canSellHouses(p), eTmp->price(), eTmp->rentByHouses(0), eTmp->rentByHouses(1), eTmp->rentByHouses(2), eTmp->rentByHouses(3), eTmp->rentByHouses(4), eTmp->rentByHouses(5));
+ 		p->ioWrite(eTmp->oldXMLUpdate(p, true));
+ 	}
+ }
 ```
 
 ## Further work
