@@ -13,8 +13,8 @@ commands in the cases it can't handle.
 
 At the moment it's designed for 1v1 bot vs bot games but it can be easily
 tweaked to play against humans. Check monopbot for the server IP/port, by
-default set to localhost:11234. One instance of the bot must be the player
-who creates the name 'robotwar'. the player limit is to be found in
+default set to localhost:11234. One instance of the bot must be the player who
+creates the game named 'robotwar'. the player limit is to be found in
 monop/client.py :: Client::gameupdate() method.
 
 ## Strategy
