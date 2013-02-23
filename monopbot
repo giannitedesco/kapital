@@ -207,6 +207,12 @@ class MainWin(gtk.Window):
 		col = self.parse_rgb(e.color)
 		if col is not None:
 			self.draw_color_band(cr, x, y, *col)
+			if e.can_buy_houses or True:
+				(ascent, descent, height,
+					max_x_advance, max_y_advance) = \
+				cr.font_extents()
+				cr.move_to(x / 20.0, height)
+				cr.show_text('%d'%e.houses)
 			band = True
 		else:
 			band = False

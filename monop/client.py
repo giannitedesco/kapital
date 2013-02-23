@@ -275,6 +275,9 @@ class Client(gobject.GObject):
 			self.msg('PAYING FIXED\n', ['red'])
 			self.cmd('.T$')
 
+	def manage_estates(self, p):
+		return
+
 	def do_turn(self, i):
 		if i.hasdebt:
 			self.handle_debt(i)
@@ -286,6 +289,7 @@ class Client(gobject.GObject):
 			self.msg('%r\n'%self.buttons, ['red'])
 			self.handle_tax(i)
 		elif i.can_roll or i.canrollagain:
+			self.manage_estates(i)
 			self.roll()
 
 	def playerupdate(self, xml):
