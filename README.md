@@ -1,4 +1,4 @@
-# kapital: A pytgtk monopoly bot
+# kapital: A pygtk monopoly bot
 
 Copyright (c) 2013 Gianni Tedesco
 
