@@ -28,10 +28,12 @@ class Client(gobject.GObject):
 		self.emit('msg', s, tags)
 
 	def cmd(self, s):
+		#from time import sleep
 		if self.sock is None:
 			return
 		self.sock.send('%s\n'%s)
 		self.msg('<< %s\n'%s, ['blue'])
+		#sleep(0.5)
 
 	def quit(self):
 		return
@@ -156,7 +158,7 @@ class Client(gobject.GObject):
 		if g.master == self.pid and g.description != 'robotwar':
 			self.msg('I AM MASTER, SETTING NAME\n', ['dark green'])
 			self.cmd('.gd%s'%'robotwar')
-		elif g.master == self.pid and g.players >= 3 \
+		elif g.master == self.pid and g.players >= 2 \
 				and g.status == 'config':
 			self.msg('I AM MASTER, STARTING GAME\n', ['dark green'])
 			self.cmd('.gs')
@@ -192,6 +194,9 @@ class Client(gobject.GObject):
 			self.abortgame()
 
 	def on_player_update(self, p, k, v):
+		if k == 'location':
+			self.cmd('.t%d'%v)
+
 		if k in ['hasturn', 'can_buyestate', 'hasdebt',
 				'can_roll', 'canrollagain'] and v:
 			if self.current != p or p.hasturn:

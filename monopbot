@@ -284,7 +284,7 @@ class MainWin(gtk.Window):
 		self.add(hb)
 		self.show_all()
 
-		self.client.connect_to('localhost', 11234)
+		self.client.connect_to('localhost', 11235)
 
 if __name__ == '__main__':
 	x = MainWin()
