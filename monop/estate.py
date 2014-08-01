@@ -22,6 +22,8 @@ class Estate(GameObj):
 			FieldTypeInt('tax'),
 			FieldTypeInt('group', -1),
 			FieldTypeInt('owner', -1),
+			FieldTypeInt('paytarget', -1),
+			FieldTypeStr('takecard'),
 			FieldTypeBool('can_toggle_mortgage'),
 			FieldTypeBool('can_sell_houses'),
 			FieldTypeBool('can_buy_houses'),

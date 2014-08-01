@@ -1,0 +1,276 @@
+#!/usr/bin/python
+
+from monop.estate import Estate
+from monop.estategroup import EstateGroup
+from monop.card import Card
+
+class GameConf(object):
+	def load(self, f):
+
+		self.groupidx = {}
+		self.groups = []
+		self.estates = []
+		self.cards = {}
+		self.params = {}
+		def General(params, sec):
+			for k,v in params:
+				self.params[k] = v
+		def EstateGroups(params, secs):
+			for h, b in secs:
+				g = EstateGroup()
+				g.name = h
+				for k, v in b:
+					setattr(g, k, v)
+				self.groupidx[g.name] = len(self.groups)
+				self.groups.append(g)
+
+		def Estates(params, secs):
+			for h, b in secs:
+				e = Estate()
+				e.name = h
+				for k, v in b:
+					if k == 'group':
+						v = self.groupidx.get(v, -1)
+					setattr(e, k, v)
+				self.estates.append(e)
+
+		def Cards(params, secs):
+			gn = None
+			for k,v in params:
+				if k == 'groupname':
+					gn = v
+			for h,b in secs:
+				c = Card()
+				c.name = h
+				for k, v in b:
+					setattr(c, k, v)
+				self.cards.setdefault(gn, list()).append(c)
+
+
+		params = []
+		secs = []
+		k = None
+		vals = []
+		sec = None
+		while True:
+			l = f.readline()
+			if l == '':
+				break
+			l = l.rstrip('\r\n')
+			if l == '':
+				continue
+
+			sections = {
+				'<General>':General,
+				'<EstateGroups>':EstateGroups,
+				'<Board>':None,
+				'<Cards>':Cards,
+				'<Estates>':Estates,
+			}
+			if l[0] == '<':
+				if k is None:
+					params.extend(vals)
+				else:
+					secs.append((k, vals))
+				vals = []
+				k = None
+				if sec is not None:
+					sec(params, secs)
+				params = []
+				secs = []
+				sec = sections.get(l, None)
+			elif l[0] == '[':
+				if k is None:
+					params.extend(vals)
+				else:
+					secs.append((k, vals))
+				vals = []
+				k = l[1:-1]
+			else:
+				arr = l.split('=')
+				assert(len(arr) == 2)
+				vals.append((arr[0], arr[1]))
+		secs.append((k, vals))
+		if sec is not None:
+			sec(params, secs)
+
+	def __init__(self, f = None):
+		super(GameConf, self).__init__()
+		self.groups = []
+		self.estates = []
+		if f is not None:
+			self.load(f)
+
+class Roll(object):
+	def __init__(self):
+		super(Roll, self).__init__()
+		r = [0 for x in xrange(6 * 2 + 2)] # 0 and 1 not possible
+		d = [0 for x in xrange(6 * 2 + 2)]
+		for i in xrange(1,7):
+			for j in xrange(1,7):
+				if i == j:
+					d[i + j] += 1
+				else:
+					r[i + j] += 1
+		self.__out = []
+		space = float(6 * 6)
+		for score, (rr, dd) in enumerate(zip(r, d)):
+			if not rr and not dd:
+				continue
+			self.__out.append((score, rr/space, dd/space))
+		#sum([sum((x, y)) for (a,x,y) in self.__out]) == 1.0
+
+	# return list of tuples of (score, Pr, Pd) representing
+	# the set of all possible dice outcomes where:
+	#  - score = sum of dice face values
+	#  - Pr = probability of rolling this NOT as doubles
+	#  - Pd = probability of rolling this as doubles
+	def outcomes(self):
+		return self.__out
+
+class Cards(object):
+	def __init__(self, deck):
+		super(Cards, self).__init__()
+
+class Universe(frozenset):
+	def __new__(cls, card):
+		return super(Universe, cls).__new__(cls, xrange(card))
+
+class Graph(dict):
+	def __init__(self, U):
+		super(Graph, self).__init__()
+		assert(isinstance(U, Universe))
+		self.U = U
+
+	def __getitem__(self, (x,y)):
+		assert(x < len(self.U))
+		assert(y < len(self.U))
+		try:
+			return super(Graph, self).__getitem__((x,y))
+		except KeyError:
+			return 0.0
+
+	def __setitem__(self, (x,y), v):
+		if not isinstance(v, float):
+			raise TypeError
+		super(Graph, self).__setitem__((x,y), v)
+	
+	def __str__(self):
+		rows = []
+		for i in xrange(len(self.U)):
+			r = ' '.join(map(lambda x:'%.3f'%self[i,x],
+					xrange(len(self.U))))
+			rows.append(r)
+		return '\n'.join(rows)
+
+	def image(self, n):
+		assert(n < len(self.U))
+		ret = []
+		for i in xrange(len(self.U)):
+			if self[n,i]:
+				ret.append(i)
+		return frozenset(ret)
+
+	def preimage(self, n):
+		assert(n < len(self.U))
+		ret = []
+		for i in xrange(len(self.U)):
+			if self[i,n]:
+				ret.append(i)
+		return frozenset(ret)
+
+	def check(self):
+		return True
+
+	def dump(self, fn, names = None):
+		def q(s):
+			return '\"%s\"'%s
+		f = open(fn, 'w')
+		f.write('digraph %s {\n'%q('Monopoly Markov Model'))
+		f.write('\tgraph[rankdir=LR]\n')
+		f.write('\tnode [shape = rectangle];\n')
+		f.write('\n')
+		def add_node(n, **kwargs):
+			n = q(n)
+			a = ' '.join(map(lambda (k,v):'%s=%s'%(k, q(v)),
+					kwargs.items()))
+			f.write('%s [%s];\n'%(n,a))
+		def add_edge(pre, post, label):
+			pre = q(pre)
+			post = q(post)
+			label = q(label)
+			f.write('%s -> %s [label=%s];\n'%(pre, post, label))
+
+		if names is None:
+			names = map(lambda x:'%d'%x, sorted(self.U))
+		for v in self.U:
+			add_node(v, label=names[v])
+
+		for (pre, post), val in self.items():
+			add_edge(pre, post, label='%g'%val)
+
+		f.write('}\n')
+		f.close()
+
+def build_model(dice, estates):
+	s = []
+	for i, e in enumerate(estates):
+		for d in xrange(3):
+			n = '%d_%d_'%(i, d) + e.name.replace(' ','_')
+			s.append(n)
+		#print ' o', i, e.name
+
+	u = Universe(len(s))
+	g = Graph(u)
+
+	for ns, n in enumerate(s):
+		i = ns / 3
+		d = ns % 3
+		e = estates[i]
+
+		out = {}
+		# FIXME: If the target has e.takecard then we need to figure out
+		# cumulative probabilities for card moves.
+		for v, nd, dub in dice.outcomes():
+			if nd:
+				nxt = ((i + v) * 3)
+				nxt %= len(s)
+				if nxt / 3 == 30:
+					nxt = 3 * 30
+				out[nxt] = out.get(nxt, 0.0) + nd
+			if dub:
+				if d == 2:
+					nxt = 30 * 3
+				else:
+					nxt = ((i + v) * 3) + d + 1
+				if nxt / 3 == 30:
+					nxt = 3 * 30
+				nxt %= len(s)
+				out[nxt] = out.get(nxt, 0.0) + dub
+
+		print n
+		for k, v in out.items():
+			print v, s[k]
+			g[ns, k] = v
+		print sum(out.values())
+		print
+	g.dump('markov.dot', s)
+	return g
+
+def main(argv):
+	EXIT_SUCCESS = 0
+	EXIT_FAILURE = 1
+
+	print 'Dice roll probabilities:'
+	r = Roll()
+	for x in r.outcomes():
+		print ' o', x
+	print
+
+	x = GameConf(open(argv[1]))
+	g = build_model(r, x.estates)
+	return EXIT_SUCCESS
+
+if __name__ == '__main__':
+	from sys import argv
+	raise SystemExit, main(argv)
