@@ -212,9 +212,42 @@ class Graph(dict):
 		f.write('}\n')
 		f.close()
 
-def build_model(dice, estates):
+def go_out(state, v, p, is_double, c, rij, closure):
+	i = state / 3
+	d = state % 3
+	e = c.estates[i]
+
+	# TODO:
+	# if we're on go-to-jail, that means in-jail, the doubles counter
+	# represents the amount of time spent in there.
+
+	# for lj, we pay out at start of turn and handle jail just like
+	# anywhere else, except we teleport back to just waiting first.
+
+	# for rij we bump the stay-counter for every non doubles turn
+	# and move normally for a doubles turn (after teleporting back).
+
+	ni = i + v
+	nd = is_double and d + 1 or 0
+
+	# go to jail on 3rd double
+	if nd >= 3:
+		ni = 30
+
+	# If we land in jail, reset the doubles counter
+	if ni == 30:
+		nd = 0
+
+	nxt = ni * 3 + nd
+	nxt %= len(c.estates) * 3
+
+	# TODO: If the target has e.takecard then we need to figure out
+	# cumulative probabilities for card moves.
+	closure(nxt, p)
+
+def build_model(dice, c, rij = True):
 	s = []
-	for i, e in enumerate(estates):
+	for i, e in enumerate(c.estates):
 		for d in xrange(3):
 			n = '%d_%d_'%(i, d) + e.name.replace(' ','_')
 			s.append(n)
@@ -224,32 +257,19 @@ def build_model(dice, estates):
 	g = Graph(u)
 
 	for ns, n in enumerate(s):
-		i = ns / 3
-		d = ns % 3
-		e = estates[i]
-
 		out = {}
-		# FIXME: If the target has e.takecard then we need to figure out
-		# cumulative probabilities for card moves.
-		for v, nd, dub in dice.outcomes():
-			if nd:
-				nxt = ((i + v) * 3)
-				nxt %= len(s)
-				if nxt / 3 == 30:
-					nxt = 3 * 30
-				out[nxt] = out.get(nxt, 0.0) + nd
-			if dub:
-				if d == 2:
-					nxt = 30 * 3
-				else:
-					nxt = ((i + v) * 3) + d + 1
-				if nxt / 3 == 30:
-					nxt = 3 * 30
-				nxt %= len(s)
-				out[nxt] = out.get(nxt, 0.0) + dub
+		def closure(nxt, p):
+			assert(nxt < len(s))
+			out[nxt] = out.get(nxt, 0.0) + p
+
+		for v, Pr, Pd in dice.outcomes():
+			if Pr:
+				go_out(ns, v, Pr, False, c, rij, closure)
+			if Pd:
+				go_out(ns, v, Pd, True, c, rij, closure)
 
 		print n
-		for k, v in out.items():
+		for v, k in sorted([(v,k) for (k,v) in out.items()]):
 			print v, s[k]
 			g[ns, k] = v
 		print sum(out.values())
@@ -267,8 +287,8 @@ def main(argv):
 		print ' o', x
 	print
 
-	x = GameConf(open(argv[1]))
-	g = build_model(r, x.estates)
+	c = GameConf(open(argv[1]))
+	g = build_model(r, c)
 	return EXIT_SUCCESS
 
 if __name__ == '__main__':
