@@ -264,7 +264,6 @@ class Client(gobject.GObject):
 			if raised >= target or e.mortgaged or e.houses > 0:
 				continue
 			self.cmd('.em%d'%e.estateid)
-			e.mortgaged = not e.mortgaged
 			raised += e.mortgageprice
 
 		if raised >= target:
@@ -276,7 +275,6 @@ class Client(gobject.GObject):
 			if raised >= target or e.mortgaged or e.houses > 0:
 				continue
 			self.cmd('.em%d'%e.estateid)
-			e.mortgaged = not e.mortgaged
 			raised += e.mortgageprice
 
 		if raised >= target:
@@ -306,17 +304,11 @@ class Client(gobject.GObject):
 				[e.mortgaged and 'red' or 'dark green'])
 		self.msg('must raise %d bucks!\n'%target)
 
-		raised = 0
-		t = target
-		while raised < target:
-			hand = self.hand(p)
-			r = self.do_raise_cash(t, hand)
-			raised += r
-			t -= r
-			if r <= 0:
-				self.msg('only raised %d bucks\n'%raised,
-					['bold','red'])
-				return False
+		raised = self.do_raise_cash(target, hand)
+		if raised < target:
+			self.msg('only raised %d bucks\n'%raised,
+				['bold','red'])
+			return False
 
 		self.msg('raised %d bucks\n'%raised, ['bold','dark green'])
 		return True
@@ -407,7 +399,6 @@ class Client(gobject.GObject):
 				continue
 
 			self.cmd('.em%d'%e.estateid)
-			e.mortgaged = not e.mortgaged
 			money -= e.unmortgageprice
 
 		# buy houses
