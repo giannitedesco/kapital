@@ -4,6 +4,8 @@ from monop.estate import Estate
 from monop.estategroup import EstateGroup
 from monop.card import Card
 
+JAIL_ROLLS = 3
+
 class GameConf(object):
 	def load(self, f):
 		self.groupidx = {}
@@ -217,9 +219,27 @@ class Graph(dict):
 		f.write('}\n')
 		f.close()
 
+
+def find_next(gn, ni, c):
+	for i in xrange(ni, len(c.estates)):
+		if c.estates[i].group < 0:
+			continue
+		g = c.groups[c.estates[i].group]
+		if gn != g.name:
+			continue
+		return i
+	for i in xrange(len(c.estates)):
+		if c.estates[i].group < 0:
+			continue
+		g = c.groups[c.estates[i].group]
+		if gn != g.name:
+			continue
+		return i
+	return None
+
 def go_out(state, v, p, is_double, c, rij, closure):
-	i = state / 3
-	d = state % 3
+	i = state / JAIL_ROLLS
+	d = state % JAIL_ROLLS
 	e = c.estates[i]
 
 	# if we're on go-to-jail, that means in-jail, the doubles counter
@@ -229,8 +249,9 @@ def go_out(state, v, p, is_double, c, rij, closure):
 		if rij and not is_double:
 			ni = i
 			nd = d + 1
-			# if we tried 3 times, then move to just-visting
-			if nd >= 3:
+			# if we tried JAIL_ROLLS times, then move to
+			# just-visting
+			if nd >= JAIL_ROLLS:
 				ni = c.jail
 				nd = 0
 		elif not rij or is_double:
@@ -243,24 +264,54 @@ def go_out(state, v, p, is_double, c, rij, closure):
 		nd = is_double and d + 1 or 0
 
 		# go to jail on 3rd double
-		if nd >= 3:
+		if nd >= JAIL_ROLLS:
 			ni = c.tojail
 
 		# If we land in jail, reset the doubles counter
 		if ni == c.tojail:
 			nd = 0
 
-	nxt = ni * 3 + nd
-	nxt %= len(c.estates) * 3
+	ni %= len(c.estates)
+	nxt = ni * JAIL_ROLLS + nd
+	ne = c.estates[ni]
 
-	# TODO: If the target has e.takecard then we need to figure out
+	# If the target has e.takecard then we need to figure out
 	# cumulative probabilities for card moves.
-	closure(nxt, p)
+	if ne.takecard:
+		cardlist = c.cards[ne.takecard]
+		for card in cardlist:
+			if card.tojail:
+				x = c.tojail
+			elif card.advanceto >= 0:
+				x = card.advanceto
+			elif card.advance:
+				x = ni + card.advance
+			elif card.advancetonextof:
+				gn = card.advancetonextof
+				x = find_next(gn, ni, c)
+			else:
+				x = ni
+
+			if x < 0:
+				x = len(c.estates) - (abs(x) + 1)
+			if x == c.tojail:
+				y = 0
+			else:
+				y = nd
+
+			np = (p * (1.0/len(cardlist)))
+			x %= len(c.estates)
+			nxt = x * JAIL_ROLLS + y
+			#print np, c.estates[x], y
+			closure(nxt, np)
+		#print
+	else:
+		closure(nxt, p)
 
 def build_model(dice, c, rij = True):
 	s = []
 	for i, e in enumerate(c.estates):
-		for d in xrange(3):
+		for d in xrange(JAIL_ROLLS):
 			n = '%d_%d_'%(i, d) + e.name.replace(' ','_')
 			s.append(n)
 		#print ' o', i, e.name
@@ -301,6 +352,7 @@ def main(argv):
 
 	c = GameConf(open(argv[1]))
 	g = build_model(r, c)
+
 	return EXIT_SUCCESS
 
 if __name__ == '__main__':
