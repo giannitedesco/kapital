@@ -6,12 +6,13 @@ from monop.card import Card
 
 class GameConf(object):
 	def load(self, f):
-
 		self.groupidx = {}
 		self.groups = []
 		self.estates = []
 		self.cards = {}
 		self.params = {}
+		self.jail = 10
+		self.tojail = 30
 		def General(params, sec):
 			for k,v in params:
 				self.params[k] = v
@@ -32,6 +33,10 @@ class GameConf(object):
 					if k == 'group':
 						v = self.groupidx.get(v, -1)
 					setattr(e, k, v)
+				if e.jail:
+					self.jail = len(self.estates)
+				if e.tojail:
+					self.tojail = len(self.estates)
 				self.estates.append(e)
 
 		def Cards(params, secs):
@@ -217,26 +222,33 @@ def go_out(state, v, p, is_double, c, rij, closure):
 	d = state % 3
 	e = c.estates[i]
 
-	# TODO:
 	# if we're on go-to-jail, that means in-jail, the doubles counter
 	# represents the amount of time spent in there.
+	if i == c.tojail:
+		# for rij we bump the stay-counter for every non doubles turn
+		if rij and not is_double:
+			ni = i
+			nd = d + 1
+			# if we tried 3 times, then move to just-visting
+			if nd >= 3:
+				ni = c.jail
+				nd = 0
+		elif not rij or is_double:
+			# pay out at start of turn for lj strategy, or if
+			# we rolled a double in rij then it's the same thing
+			ni = c.jail + v
+			nd = 0
+	else:
+		ni = i + v
+		nd = is_double and d + 1 or 0
 
-	# for lj, we pay out at start of turn and handle jail just like
-	# anywhere else, except we teleport back to just waiting first.
+		# go to jail on 3rd double
+		if nd >= 3:
+			ni = c.tojail
 
-	# for rij we bump the stay-counter for every non doubles turn
-	# and move normally for a doubles turn (after teleporting back).
-
-	ni = i + v
-	nd = is_double and d + 1 or 0
-
-	# go to jail on 3rd double
-	if nd >= 3:
-		ni = 30
-
-	# If we land in jail, reset the doubles counter
-	if ni == 30:
-		nd = 0
+		# If we land in jail, reset the doubles counter
+		if ni == c.tojail:
+			nd = 0
 
 	nxt = ni * 3 + nd
 	nxt %= len(c.estates) * 3
