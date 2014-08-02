@@ -25,7 +25,7 @@ class GameObj(object):
 			if self.updated is not None:
 				self.updated(self, attr, v)
 		else:
-			print self.__class__.__name__, attr, 'not found', val
+			#print self.__class__.__name__, attr, 'not found', val
 			object.__setattr__(self,attr,val)
 			#raise AttributeError, '%s not found'%attr
 

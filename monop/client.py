@@ -416,7 +416,9 @@ class Client(gobject.GObject):
 			tc = sum(map(lambda x:x.houseprice, m))
 			if money < reserve + tc:
 				continue
-			self.msg('monopoly: buying a level\n',
+			if m[0].houses < 5:
+				self.msg('monopoly: buying a level on %s\n'%\
+					', '.join(map(lambda x:x.name, m)),
 					['bold', 'dark blue'])
 			for e in m:
 				if e.houses >= 5:
