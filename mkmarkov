@@ -4,6 +4,8 @@ from monop.estate import Estate
 from monop.estategroup import EstateGroup
 from monop.card import Card
 
+import numpy as np
+
 JAIL_ROLLS = 3
 
 class GameConf(object):
@@ -337,8 +339,76 @@ def build_model(dice, c, rij = True):
 			g[ns, k] = v
 		print sum(out.values())
 		print
-	g.dump('markov.dot', s)
+	g.dump('markov%s.dot'%(rij and 'rij' or 'lj'), s)
 	return g
+
+def mag_manhattan(a, b):
+	return sum(map(lambda x:abs(x[0] - x[1]), zip(a, b)))
+def mag_euclidian(a, b):
+	return np.sqrt(sum(map(lambda x:(x[0] - x[1]) * (x[0] - x[1]),
+			zip(a, b))))
+def mul(d, s, A):
+	for i in xrange(len(d)):
+		d[i] = 0.0
+		for j in xrange(len(d)):
+			d[i] += s[j] * A[j,i]
+	return
+
+def do_pagerank(A, k, d, epsilon=1e-5):
+	n = A.shape[0]
+	r = np.array([1.0 for x in k])
+	t = np.array([1.0 for x in k])
+	isr = True
+	cnt = 0
+	mag = mag_euclidian
+	#mag = mag_manhattan
+
+	while True:
+		if isr:
+			mul(t, r, A)
+			t *= d
+			t += k
+		else:
+			mul(r, t, A)
+			r *= d
+			r += k
+		cnt += 1
+
+		if mag(r, t) <= epsilon:
+			break
+
+		isr = not isr
+
+	print 'found after %d iterations'%cnt
+	return r
+
+def pagerank(A, damping_factor = 0.85):
+	n = A.shape[0]
+	c = (1.0 - damping_factor) / float(n)
+	k = [c for x in xrange(n)]
+	return do_pagerank(A, k, damping_factor)
+
+def eigenvector(A):
+	n = A.shape[0]
+	k = [0.0 for x in xrange(n)]
+	return do_pagerank(A, k, 1.0)
+
+
+def steady_state(g, c):
+	A = np.mat(np.zeros([len(g.U), len(g.U)]))
+	for (x,y), v in g.items():
+		A[x,y] = v
+
+	pr = pagerank(A)
+	#pr = eigenvector(A)
+
+	d = {}
+	for i,v in enumerate(pr):
+		d[i/3] = d.get(i/3, 0.0) + v
+
+	for v, k in sorted([(v,k) for (k,v) in d.items()], reverse=True):
+		print c.estates[k]
+	return
 
 def main(argv):
 	EXIT_SUCCESS = 0
@@ -352,6 +422,7 @@ def main(argv):
 
 	c = GameConf(open(argv[1]))
 	g = build_model(r, c)
+	steady_state(g, c)
 
 	return EXIT_SUCCESS
 
