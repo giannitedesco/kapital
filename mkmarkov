@@ -335,12 +335,12 @@ def build_model(dice, c, rij = True):
 			if Pd:
 				go_out(ns, v, Pd, True, c, rij, closure)
 
-		print n
+		#print n
 		for v, k in sorted([(v,k) for (k,v) in out.items()]):
-			print v, s[k]
+			#print v, s[k]
 			g[ns, k] = v
-		print sum(out.values())
-		print
+		#print sum(out.values())
+		#print
 	g.dump('markov%s.dot'%(rij and 'rij' or 'lj'), s)
 	return g
 
@@ -356,7 +356,7 @@ def mul(d, s, A):
 			d[i] += s[j] * A[j,i]
 	return
 
-def do_pagerank(A, k, d, epsilon=1e-5):
+def do_pagerank(A, k, d, epsilon=1e-3):
 	n = A.shape[0]
 	r = np.array([1.0 for x in k])
 	t = np.array([1.0 for x in k])
@@ -432,14 +432,22 @@ def main(argv):
 	EXIT_SUCCESS = 0
 	EXIT_FAILURE = 1
 
-	print 'Dice roll probabilities:'
+	#print 'Dice roll probabilities:'
 	r = Roll()
-	for x in r.outcomes():
-		print ' o', x
-	print
+	#for x in r.outcomes():
+	#	print ' o', x
+	#print
 
 	c = GameConf(open(argv[1]))
-	g = build_model(r, c)
+
+	g = build_model(r, c, rij = True)
+	print 'Steady state probabilities for RIJ model'
+	steady_state(g, c)
+
+	print
+
+	g = build_model(r, c, rij = False)
+	print 'Steady state probabilities for LJ model'
 	steady_state(g, c)
 
 	return EXIT_SUCCESS
