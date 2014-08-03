@@ -68,6 +68,8 @@ class GameConf(object):
 			l = l.rstrip('\r\n')
 			if l == '':
 				continue
+			if l[0] == '#':
+				continue
 
 			sections = {
 				'<General>':General,
@@ -379,8 +381,11 @@ def do_pagerank(A, k, d, epsilon=1e-5):
 
 		isr = not isr
 
+	if not isr:
+		r = t
+
 	print 'found after %d iterations'%cnt
-	return r
+	return r * (1.0 / r.sum())
 
 def pagerank(A, damping_factor = 0.85):
 	n = A.shape[0]
@@ -399,15 +404,28 @@ def steady_state(g, c):
 	for (x,y), v in g.items():
 		A[x,y] = v
 
-	pr = pagerank(A)
-	#pr = eigenvector(A)
+	#pr = pagerank(A)
+	pr = eigenvector(A)
 
-	d = {}
+	e = {}
+	g = {}
 	for i,v in enumerate(pr):
-		d[i/3] = d.get(i/3, 0.0) + v
+		idx = i / 3
+		gdx = c.estates[idx].group
+		if gdx < 0:
+			gdx = -idx
+		e[idx] = e.get(idx, 0.0) + v
+		g[gdx] = g.get(gdx, 0.0) + v
 
-	for v, k in sorted([(v,k) for (k,v) in d.items()], reverse=True):
-		print c.estates[k]
+	for v, k in sorted([(v,k) for (k,v) in e.items()], reverse=True):
+		print '%.3f%% %s'%(v * 100.0, c.estates[k].name)
+	print
+	for v, k in sorted([(v,k) for (k,v) in g.items()], reverse=True):
+		if k < 0:
+			n = c.estates[-k].name
+		else:
+			n = c.groups[k].name
+		print '%.3f%% %s'%(v * 100.0, n)
 	return
 
 def main(argv):
