@@ -358,6 +358,8 @@ class Client(gobject.GObject):
 
 	def handle_jail(self):
 		# decide whether to pay, use card, or what
+		if i.money < 50:
+			self.raise_cash(i, 50 - i.money)
 		self.msg('BUYING OUT OF JAIL\n', ['red'])
 		self.cmd('.jp')
 
@@ -425,8 +427,6 @@ class Client(gobject.GObject):
 		elif i.can_buyestate:
 			self.can_buy(i)
 		elif i.jailed:
-			if i.money < 50:
-				self.raise_cash(i, 50 - i.money)
 			self.handle_jail()
 		elif len(self.buttons) and not i.can_buyestate:
 			self.msg('%r\n'%self.buttons, ['red'])
