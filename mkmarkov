@@ -353,7 +353,7 @@ def mag_euclidian(a, b):
 def mul(d, s, A):
 	np.dot(s, A, d)
 
-def do_pagerank(A, k, d, epsilon=1e-3):
+def do_pagerank(A, k, d, epsilon=1e-5):
 	n = A.shape[0]
 	r = np.mat([[1.0 for x in k]])
 	t = np.mat([[1.0 for x in k]])
