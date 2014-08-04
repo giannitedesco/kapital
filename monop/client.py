@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 import gobject, glib
 
 from linesock import LineSock
@@ -336,7 +334,7 @@ class Client(gobject.GObject):
 			due = 100
 		self.raise_cash(p, due)
 
-	def can_buy(self, p):
+	def handle_purchase(self, p):
 		e = self.estates[p.location]
 		self.msg('price is %d, i gots %d\n'%(e.price, p.money))
 		if e.price > p.money:
@@ -356,7 +354,7 @@ class Client(gobject.GObject):
 		self.msg('ROLLIN\n', ['red'])
 		self.cmd('.r')
 
-	def handle_jail(self):
+	def handle_jail(self, i):
 		# decide whether to pay, use card, or what
 		if i.money < 50:
 			self.raise_cash(i, 50 - i.money)
@@ -425,9 +423,9 @@ class Client(gobject.GObject):
 			self.handle_debt(i)
 			self.roll()
 		elif i.can_buyestate:
-			self.can_buy(i)
+			self.handle_purchase(i)
 		elif i.jailed:
-			self.handle_jail()
+			self.handle_jail(i)
 		elif len(self.buttons) and not i.can_buyestate:
 			self.msg('%r\n'%self.buttons, ['red'])
 			self.handle_tax(i)
@@ -499,10 +497,11 @@ class Client(gobject.GObject):
 		self.svrnick = None
 		self.abortgame()
 
-	def __init__(self, disp = None, nick = 'MrMonopoly'):
+	def __init__(self, disp = None, nick = 'MrMonopoly', strategy = None):
 		gobject.GObject.__init__(self)
 		self.disp = disp
 		self.nick = nick
+		self.strategy = strategy
 		self.abort()
 
 	def dumpxml(self, n, depth = 0):

@@ -3,7 +3,7 @@
 import gobject, gtk, pango
 from os import listdir
 from cairo import ImageSurface
-from monop import Board, Client as MonopClient
+from monop import Board, Strategy, Client as MonopClient
 
 class MonopDisplay(gtk.VBox):
 	def __init__(self, cmd):
@@ -272,7 +272,7 @@ class MainWin(gtk.Window):
 		vb.pack_start(entry, False, False)
 
 		self.disp = MonopDisplay(self.cmd)
-		self.client = MonopClient(self.disp)
+		self.client = MonopClient(self.disp, strategy = Strategy())
 
 		self.client.connect('msg', self.msg)
 		self.client.connect('updated', self.redraw)

@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 import gobject, gtk, cairo
 from collections import namedtuple
 import math
