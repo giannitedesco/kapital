@@ -5,6 +5,7 @@ from monop.estategroup import EstateGroup
 from monop.card import Card
 
 import numpy as np
+import math
 
 JAIL_ROLLS = 3
 
@@ -345,18 +346,17 @@ def build_model(dice, c, rij = True):
 	return g
 
 def mag_manhattan(a, b):
-	return sum(map(lambda x:abs(x[0] - x[1]), zip(a, b)))
+	return np.sum(a - b)
 def mag_euclidian(a, b):
-	return np.sqrt(sum(map(lambda x:(x[0] - x[1]) * (x[0] - x[1]),
-			zip(a, b))))
+	return np.linalg.norm(a - b)
+
 def mul(d, s, A):
-	for i in xrange(len(d)):
-		d[i] = np.dot(s, A[:,i])
+	np.dot(s, A, d)
 
 def do_pagerank(A, k, d, epsilon=1e-3):
 	n = A.shape[0]
-	r = np.array([1.0 for x in k])
-	t = np.array([1.0 for x in k])
+	r = np.mat([[1.0 for x in k]])
+	t = np.mat([[1.0 for x in k]])
 	isr = True
 	cnt = 0
 	mag = mag_euclidian
@@ -364,13 +364,13 @@ def do_pagerank(A, k, d, epsilon=1e-3):
 
 	while True:
 		if isr:
-			mul(t, r, A)
-			t *= d
-			t += k
+			mul(t, r[0], A)
+			t[0] *= d
+			t[0] += k
 		else:
-			mul(r, t, A)
-			r *= d
-			r += k
+			mul(r, t[0], A)
+			r[0] *= d
+			r[0] += k
 		cnt += 1
 
 		if mag(r, t) <= epsilon:
@@ -382,7 +382,7 @@ def do_pagerank(A, k, d, epsilon=1e-3):
 		r = t
 
 	print 'found after %d iterations'%cnt
-	return r * (1.0 / r.sum())
+	return r[0] * (1.0 / r[0].sum())
 
 def pagerank(A, damping_factor = 0.85):
 	n = A.shape[0]
@@ -403,6 +403,7 @@ def steady_state(g, c):
 
 	#pr = pagerank(A)
 	pr = eigenvector(A)
+	pr = pr.tolist()[0]
 
 	e = {}
 	g = {}
