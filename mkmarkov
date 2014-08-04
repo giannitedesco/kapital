@@ -350,9 +350,6 @@ def mag_manhattan(a, b):
 def mag_euclidian(a, b):
 	return np.linalg.norm(a - b)
 
-def mul(d, s, A):
-	np.dot(s, A, d)
-
 def do_pagerank(A, k, d, epsilon=1e-5):
 	n = A.shape[0]
 	r = np.mat([[1.0 for x in k]])
@@ -364,11 +361,11 @@ def do_pagerank(A, k, d, epsilon=1e-5):
 
 	while True:
 		if isr:
-			mul(t, r[0], A)
+			np.dot(t, A, r[0])
 			t[0] *= d
 			t[0] += k
 		else:
-			mul(r, t[0], A)
+			np.dot(r, A, t[0])
 			r[0] *= d
 			r[0] += k
 		cnt += 1
@@ -382,7 +379,8 @@ def do_pagerank(A, k, d, epsilon=1e-5):
 		r = t
 
 	print 'found after %d iterations'%cnt
-	return r[0] * (1.0 / r[0].sum())
+	ret = r[0] * (1.0 / r[0].sum())
+	return ret.tolist()[0]
 
 def pagerank(A, damping_factor = 0.85):
 	n = A.shape[0]
@@ -403,7 +401,6 @@ def steady_state(g, c):
 
 	#pr = pagerank(A)
 	pr = eigenvector(A)
-	pr = pr.tolist()[0]
 
 	e = {}
 	g = {}
