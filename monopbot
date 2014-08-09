@@ -191,7 +191,7 @@ class MainWin(gtk.Window):
 		cr.restore()
 
 	def draw_box(self, cr, (x, y), boxid):
-		if not self.client.estates.has_key(boxid):
+		if not self.client.s.estates.has_key(boxid):
 			(ascent, descent, height,
 					max_x_advance, max_y_advance) = \
 				cr.font_extents()
@@ -200,10 +200,10 @@ class MainWin(gtk.Window):
 			return
 
 		# look at the estate
-		e = self.client.estates[boxid]
+		e = self.client.s.estates[boxid]
 
 		# grab the estate group color
-		g = self.client.groups.get(e.group, None)
+		g = self.client.s.groups.get(e.group, None)
 		col = self.parse_rgb(e.color)
 		if col is not None:
 			self.draw_color_band(cr, x, y, *col)
@@ -219,11 +219,11 @@ class MainWin(gtk.Window):
 
 		# draw player tokens
 		p = filter(lambda x:x.location == boxid,
-				self.client.players.values())
+				self.client.s.players.values())
 		self.draw_player_tokens(cr, x, y, p)
 
 		# draw ownership token
-		p = self.client.players.get(e.owner, None)
+		p = self.client.s.players.get(e.owner, None)
 		if p is not None and e.can_be_owned:
 			self.draw_owner(cr, x, y, p, e.mortgaged, band)
 

@@ -3,6 +3,7 @@ from collections import namedtuple
 Field = namedtuple('Field', ['type', 'value'])
 class GameObj(object):
 	def __init__(self, types, updated = None):
+		super(GameObj, self).__init__()
 		object.__setattr__(self, '_GameObj__fields', {})
 		object.__setattr__(self, 'updated', updated)
 		for t in types:

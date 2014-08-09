@@ -11,6 +11,7 @@ from game import Game
 from player import Player
 from estategroup import EstateGroup
 from estate import Estate
+from gamestate import GameState
 from errors import *
 
 class Client(gobject.GObject):
@@ -82,9 +83,9 @@ class Client(gobject.GObject):
 		except KeyError, ValueError:
 			raise MonopError
 
-		g = self.groups.get(gid, EstateGroup())
+		g = self.s.groups.get(gid, EstateGroup())
 		g.update(xml)
-		self.groups[g.groupid] = g
+		self.s.groups[g.groupid] = g
 
 	def estate(self, xml):
 		try:
@@ -92,13 +93,14 @@ class Client(gobject.GObject):
 		except KeyError, ValueError:
 			raise MonopError
 
-		e = self.estates.get(eid, Estate())
+		e = self.s.estates.get(eid, Estate())
 		e.update(xml)
-		self.estates[e.estateid] = e
+		self.s.estates[e.estateid] = e
 		#self.dumpxml(xml)
 
-		if e.group >= 0 and self.groups.has_key(e.group):
-			g = self.groups[e.group]
+		if e.group >= 0 and self.s.groups.has_key(e.group):
+			# FIXME: here is where we add structur
+			g = self.s.groups[e.group]
 			g.estates = g.estates.union([e.estateid])
 
 	def configupdate(self, xml):
@@ -161,7 +163,7 @@ class Client(gobject.GObject):
 			self.msg('I AM MASTER, STARTING GAME\n', ['dark green'])
 			self.cmd('.gs')
 		elif g.canbejoined and g.description == 'robotwar' and \
-				self.players[self.pid].game == -1 and \
+				self.s.players[self.pid].game == -1 and \
 				g.status != 'config':
 			self.msg('JOINING GAME\n', ['red'])
 			self.cmd('.gj%d'%g.gameid)
@@ -169,8 +171,8 @@ class Client(gobject.GObject):
 	def deleteplayer(self, xml):
 		try:
 			pid = int(xml['playerid'])
-			p = self.players[pid]
-			del self.players[pid]
+			p = self.s.players[pid]
+			del self.s.players[pid]
 		except KeyError, ValueError:
 			raise MonopError
 
@@ -188,7 +190,7 @@ class Client(gobject.GObject):
 		self.msg('deleted game: ', ['bold'])
 		self.msg('%s\n'%g.description)
 
-		if self.players[self.pid].game == gid:
+		if self.s.players[self.pid].game == gid:
 			self.abortgame()
 
 	def on_player_update(self, p, k, v):
@@ -215,222 +217,24 @@ class Client(gobject.GObject):
 		else:
 			return
 
-	def hand(self, p):
-		return filter(lambda x:x.owner == p.playerid,
-				self.estates.values())
-
-	def split_hand(self, hand):
-		out = []
-
-		# first build a set of estates in our hand
-		s = set()
-		s = s.union(map(lambda x:x.estateid, hand))
-
-		# keep track of properties part of monopolies
-		mprops = set()
-
-		for g in self.groups.values():
-			# if the intersection of estates in a group is
-			# equal to the set of all estates in a group then
-			# we have a monopoly
-			if s.intersection(g.estates) == g.estates:
-				# so lets lookup all the estate objects
-				e = map(lambda x:self.estates[x], g.estates)
-
-				# sort by estateid
-				e.sort()
-
-				# then append them to our results
-				out.append(e)
-
-				# and keep track of what we appended
-				mprops |= set(e)
-
-		# so that we can build a list of the remainder
-		misc = map(lambda x:self.estates[x],s - mprops)
-
-		return (out, misc)
-
-	def do_raise_cash(self, target, hand):
-		raised = 0
-
-		(monopolies, crap) = self.split_hand(hand)
-
-		# first try mortgage properties that are not
-		# part of monopolies
-		for e in crap:
-			if raised >= target or e.mortgaged or e.houses > 0:
-				continue
-			self.cmd('.em%d'%e.estateid)
-			raised += e.mortgageprice
-
-		if raised >= target:
-			return raised
-
-		# now try mortgage undeveloped monopolies
-		monoplist = sum(monopolies, [])
-		for e in monoplist:
-			if raised >= target or e.mortgaged or e.houses > 0:
-				continue
-			self.cmd('.em%d'%e.estateid)
-			raised += e.mortgageprice
-
-		if raised >= target:
-			return raised
-
-		# now to sell houses, sell entire rows at once
-		# just to keep it simple
-		for g in monopolies:
-			if True in map(lambda x:x.mortgaged,g):
-				continue
-			if raised >= target:
-				break
-			for e in g:
-				if e.houses <= 0:
-					continue
-				self.cmd('.hs%d'%e.estateid)
-				e.houses -= 1
-				raised += e.sellhouseprice
-
-		# shouldn't really be possible, we're bust
-		return raised
-
-	def raise_cash(self, p, target):
-		hand = self.hand(p)
-		for e in hand:
-			self.msg('I own: [%d]: %s\n'%(e.estateid, e.name),
-				[e.mortgaged and 'red' or 'dark green'])
-		self.msg('must raise %d bucks!\n'%target)
-
-		raised = self.do_raise_cash(target, hand)
-		if raised < target:
-			self.msg('only raised %d bucks\n'%raised,
-				['bold','red'])
-			return False
-
-		self.msg('raised %d bucks\n'%raised, ['bold','dark green'])
-		return True
-
-	def due(self, p, e):
-		self.msg('due %r\n'%e)
-		if e.owner == p.playerid:
-			self.msg('we own this?!\n')
-			return 0
-		price = getattr(e, 'rent%d'%e.houses)
-		if price >= 0:
-			self.msg('so that\'s %d\n'%price)
-			return price
-		if e.tax:
-			self.msg('it\'s a tax of %%d\n'%e.tax)
-			return e.tax
-		return 0
-
-	def handle_debt(self, p):
-		self.msg('handle debts\n')
-		e = self.estates[p.location]
-		due = self.due(p, e)
-		if due <= 0:
-			self.msg('not sure what to do\n')
-			due = 100
-		self.raise_cash(p, due)
-
-	def handle_purchase(self, p):
-		e = self.estates[p.location]
-		self.msg('price is %d, i gots %d\n'%(e.price, p.money))
-		if e.price > p.money:
-			can_afford = self.raise_cash(p, e.price - p.money)
-		else:
-			can_afford = True
-
-		if can_afford:
-			self.msg('BUYING IT, THEY HATIN\n', ['dark green'])
-			self.cmd('.eb')
-		else:
-			self.msg('CANNOT AFFORD, AUCTION\n', ['red'])
-			#self.cmd('.ea')
-
 	def roll(self):
 		# do stuff
 		self.msg('ROLLIN\n', ['red'])
 		self.cmd('.r')
 
-	def handle_jail(self, i):
-		# decide whether to pay, use card, or what
-		if i.money < 50:
-			self.raise_cash(i, 50 - i.money)
-		self.msg('BUYING OUT OF JAIL\n', ['red'])
-		self.cmd('.jp')
-
-	def handle_tax(self, p):
-		self.msg('got %d bucks\n'%p.money)
-
-		e = self.estates[p.location]
-		pc = e.taxpercentage and e.taxpercentage or 10
-		fixed = e.tax and e.tax or 200
-
-		money = p.money
-		for e in self.hand(p):
-			self.msg('I own: %s (%d + %d)\n'%(e.name,
-				e.mortgageprice, e.houses * e.sellhouseprice),
-				[e.mortgaged and 'red' or 'dark green'])
-			if not e.mortgaged:
-				money += e.mortgageprice
-				money += e.houses * e.sellhouseprice
-		money = float(pc) * float(money) / 100.0
-		self.msg('fixed price is %d, assets is %d\n'%(fixed, money))
-		if money < fixed:
-			self.msg('PAYING PERCENTAGE\n', ['dark green'])
-			self.cmd('.T%')
-		else:
-			self.msg('PAYING FIXED\n', ['red'])
-			self.cmd('.T$')
-
-	def manage_estates(self, p):
-		money = p.money
-		hand = self.hand(p)
-
-		# unmortgage properties
-		reserve = 200
-		for e in hand:
-			if not e.mortgaged:
-				continue
-
-			if money < e.unmortgageprice + reserve:
-				continue
-
-			self.cmd('.em%d'%e.estateid)
-			money -= e.unmortgageprice
-
-		# buy houses
-		(monopolies, misc) = self.split_hand(hand)
-		for m in monopolies:
-			tc = sum(map(lambda x:x.houseprice, m))
-			if money < reserve + tc:
-				continue
-			if m[0].houses < 5:
-				self.msg('monopoly: buying a level on %s\n'%\
-					', '.join(map(lambda x:x.name, m)),
-					['bold', 'dark blue'])
-			for e in m:
-				if e.houses >= 5:
-					continue
-				self.msg(' - %r\n'%e, ['bold', 'dark blue'])
-				self.cmd('.hb%d'%e.estateid)
-				e.houses += 1
-
 	def do_turn(self, i):
 		if i.hasdebt:
-			self.handle_debt(i)
+			self.strategy.handle_debt(i)
 			self.roll()
 		elif i.can_buyestate:
-			self.handle_purchase(i)
+			self.strategy.handle_purchase(i)
 		elif i.jailed:
-			self.handle_jail(i)
+			self.strategy.handle_jail(i)
 		elif len(self.buttons) and not i.can_buyestate:
 			self.msg('%r\n'%self.buttons, ['red'])
-			self.handle_tax(i)
+			self.strategy.handle_tax(i)
 		elif i.can_roll or i.canrollagain:
-			self.manage_estates(i)
+			self.strategy.manage_estates(i)
 			self.roll()
 
 	def playerupdate(self, xml):
@@ -439,10 +243,10 @@ class Client(gobject.GObject):
 		except KeyError, ValueError:
 			raise MonopError
 
-		p = self.players.get(pid, Player(self.on_player_update))
+		p = self.s.players.get(pid, Player(self.on_player_update))
 
 		p.update(xml)
-		self.players[p.playerid] = p
+		self.s.players[p.playerid] = p
 
 		if pid == self.pid and not self.ready:
 			self.ready = True
@@ -480,12 +284,11 @@ class Client(gobject.GObject):
 		self.cmd('.n%s'%self.nick)
 
 	def abortgame(self):
-		self.groups = {}
-		self.estates = {}
 		self.current = None
 		self.newturn = False
 		self.buttons = []
 		self.ready = False
+		self.s.game_over()
 
 	def abort(self):
 		self.sock = None
@@ -493,16 +296,27 @@ class Client(gobject.GObject):
 		self.cookie = None
 		self.gametypes = {}
 		self.games = {}
-		self.players = {}
 		self.svrnick = None
+		self.s.abort()
 		self.abortgame()
 
 	def __init__(self, disp = None, nick = 'MrMonopoly', strategy = None):
 		gobject.GObject.__init__(self)
+
 		self.disp = disp
 		self.nick = nick
-		self.strategy = strategy
+
+		self.s = GameState()
 		self.abort()
+
+		def strategy_msg(it, *_):
+			self.msg(*_)
+		def strategy_cmd(it, *_):
+			self.cmd(*_)
+		strategy.connect('msg', strategy_msg)
+		strategy.connect('cmd', strategy_cmd)
+		self.strategy = strategy
+		self.strategy.s = self.s
 
 	def dumpxml(self, n, depth = 0):
 		"Dump a XMLNode DOM"
