@@ -78,3 +78,5 @@ class GameState(gobject.GObject):
 
 		self.msg('deleted player: ', ['bold'])
 		self.msg('%s\n'%p.name)
+
+gobject.type_register(GameState)
