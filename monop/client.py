@@ -37,17 +37,6 @@ class Client(gobject.GObject):
 	def quit(self):
 		return
 
-	def auctionupdate(self, xml):
-		self.dumpxml(xml)
-
-	def cardupdate(self, xml):
-		try:
-			owner = int(xml.get('owner', -1))
-			cardid = int(xml.get('cardid', -1))
-		except KeyError, ValueError:
-			raise MonopError
-		self.msg('player %d gets card %d\n'%(owner, cardid), ['purple'])
-
 	def display(self, xml):
 		try:
 			text = xml.get('text', '')
@@ -76,36 +65,6 @@ class Client(gobject.GObject):
 			enabled = bool(int(x.get('enabled', 1)))
 			self.buttons.append((caption, command, enabled))
 			self.disp.add_button(caption, command, enabled)
-
-	def estategroup(self, xml):
-		try:
-			gid = int(xml['groupid'])
-		except KeyError, ValueError:
-			raise MonopError
-
-		g = self.s.groups.get(gid, EstateGroup())
-		g.update(xml)
-		self.s.groups[g.groupid] = g
-
-	def estate(self, xml):
-		try:
-			eid = int(xml['estateid'])
-		except KeyError, ValueError:
-			raise MonopError
-
-		e = self.s.estates.get(eid, Estate())
-		e.update(xml)
-		self.s.estates[e.estateid] = e
-		#self.dumpxml(xml)
-
-		if e.group >= 0 and self.s.groups.has_key(e.group):
-			# FIXME: here is where we add structur
-			g = self.s.groups[e.group]
-			g.estates = g.estates.union([e.estateid])
-
-	def configupdate(self, xml):
-		#self.dumpxml(xml)
-		return
 
 	def svrmsg(self, xml):
 		try:
@@ -144,16 +103,15 @@ class Client(gobject.GObject):
 		if gid < 0:
 			return self.gametype(xml)
 
-		g = self.games.get(gid, Game())
+		g = self.games.pop(gid, Game())
 		new = g.gameid == -1
 		g.update(xml)
-
 		self.games[g.gameid] = g
 
-		self.msg('game update: ', ['bold'])
-		self.msg('%s: %s\n'%(g.name,
-			', '.join(['%s -> %s'%(k, v) for
-				k,v in xml.attrib.items()])))
+		#self.msg('game update: ', ['bold'])
+		#self.msg('%s: %s\n'%(g.name,
+		#	', '.join(['%s -> %s'%(k, v) for
+		#		k,v in xml.attrib.items()])))
 
 		if g.master == self.pid and g.description != 'robotwar':
 			self.msg('I AM MASTER, SETTING NAME\n', ['dark green'])
@@ -167,17 +125,6 @@ class Client(gobject.GObject):
 				g.status != 'config':
 			self.msg('JOINING GAME\n', ['red'])
 			self.cmd('.gj%d'%g.gameid)
-
-	def deleteplayer(self, xml):
-		try:
-			pid = int(xml['playerid'])
-			p = self.s.players[pid]
-			del self.s.players[pid]
-		except KeyError, ValueError:
-			raise MonopError
-
-		self.msg('deleted player: ', ['bold'])
-		self.msg('%s\n'%p.name)
 
 	def deletegame(self, xml):
 		try:
@@ -206,7 +153,7 @@ class Client(gobject.GObject):
 		if p.playerid != self.pid:
 			return
 
-		self.msg('%s: %s -> %s\n'%(p.name, k, v), ['purple'])
+		#self.msg('%s: %s -> %s\n'%(p.name, k, v), ['purple'])
 
 		if k == 'name':
 			self.svrnick = v
@@ -243,8 +190,7 @@ class Client(gobject.GObject):
 		except KeyError, ValueError:
 			raise MonopError
 
-		p = self.s.players.get(pid, Player(self.on_player_update))
-
+		p = self.s.players.pop(pid, Player(self.on_player_update))
 		p.update(xml)
 		self.s.players[p.playerid] = p
 
@@ -306,7 +252,11 @@ class Client(gobject.GObject):
 		self.disp = disp
 		self.nick = nick
 
+		def state_msg(it, *_):
+			self.msg(*_)
+
 		self.s = GameState()
+		self.s.connect('msg', state_msg)
 		self.abort()
 
 		def strategy_msg(it, *_):
@@ -355,20 +305,26 @@ class Client(gobject.GObject):
 				def ignore(xml):
 					return
 				disp = {
+					# login stuff
 					'client':self.client,
 					'server':self.server,
+
+					# lobby stuff
+					'gameupdate':self.gameupdate,
+					'updategamelist':ignore,
+					'deletegame':self.deletegame,
+
 					'display':self.display,
 					'msg':self.svrmsg,
-					'updategamelist':ignore,
+
+					# gamestate relevant
 					'playerupdate':self.playerupdate,
-					'gameupdate':self.gameupdate,
-					'deleteplayer':self.deleteplayer,
-					'deletegame':self.deletegame,
-					'configupdate':self.configupdate,
-					'estategroupupdate':self.estategroup,
-					'estateupdate':self.estate,
-					'cardupdate':self.cardupdate,
-					'auctionupdate':self.auctionupdate,
+					'deleteplayer':self.s.deleteplayer,
+					'configupdate':self.s.configupdate,
+					'estategroupupdate':self.s.estategroup,
+					'estateupdate':self.s.estate,
+					'cardupdate':self.s.cardupdate,
+					'auctionupdate':self.s.auctionupdate,
 				}
 				if xml.name != 'monopd':
 					raise MonopError

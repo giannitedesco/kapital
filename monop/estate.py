@@ -35,8 +35,8 @@ class Estate(GameObj):
 			FieldTypeStr('color'),
 			FieldTypeStr('bgcolor'),
 			FieldTypeStr('name')]
-	def __init__(self):
-		GameObj.__init__(self, Estate.__types)
+	def __init__(self, updated = None):
+		GameObj.__init__(self, Estate.__types, updated)
 	def __cmp__(self, other):
 		if self.estateid < other.estateid:
 			return -1
