@@ -14,17 +14,17 @@ class GameState(gobject.GObject):
 	def msg(self, s, tags = []):
 		self.emit('msg', s, tags)
 
-	def __init__(self):
-		super(GameState, self).__init__()
-		self.abort()
-		self.game_over()
-
 	def game_over(self):
 		self.groups = {}
 		self.estates = {}
 	def abort(self):
 		self.game_over()
 		self.players = {}
+
+	def __init__(self):
+		super(GameState, self).__init__()
+		self.abort()
+		self.game_over()
 
 	def estategroup(self, xml):
 		try:

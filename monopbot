@@ -101,8 +101,6 @@ class BotLog(gtk.TextView):
 
 class MainWin(gtk.Window):
 	def destroy(self, *_):
-		if self.client is not None:
-			self.client.quit()
 		gtk.Window.destroy(self)
 		if self.in_main:
 			gtk.mainquit()

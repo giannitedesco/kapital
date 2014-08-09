@@ -34,8 +34,25 @@ class Client(gobject.GObject):
 		self.msg('<< %s\n'%s, ['blue'])
 		#sleep(0.5)
 
-	def quit(self):
-		return
+	def roll(self):
+		# do stuff
+		self.msg('ROLLIN\n', ['red'])
+		self.cmd('.r')
+
+	def do_turn(self, i):
+		if i.hasdebt:
+			self.strategy.handle_debt(i)
+			self.roll()
+		elif i.can_buyestate:
+			self.strategy.handle_purchase(i)
+		elif i.jailed:
+			self.strategy.handle_jail(i)
+		elif len(self.buttons) and not i.can_buyestate:
+			self.msg('%r\n'%self.buttons, ['red'])
+			self.strategy.handle_tax(i)
+		elif i.can_roll or i.canrollagain:
+			self.strategy.manage_estates(i)
+			self.roll()
 
 	def display(self, xml):
 		try:
@@ -150,39 +167,17 @@ class Client(gobject.GObject):
 				self.newturn = True
 			self.current = p
 
-		if p.playerid != self.pid:
-			return
+		if p.playerid == self.pid and k == 'name':
+			self.svrnick = v
 
 		#self.msg('%s: %s -> %s\n'%(p.name, k, v), ['purple'])
 
-		if k == 'name':
-			self.svrnick = v
-		elif k == 'location':
+		if k == 'location':
 			self.msg('%s now at %d\n'%(p.name, p.location))
 		elif k == 'image':
 			self.msg('%s now using avatar %s\n'%(p.name, p.image))
 		else:
 			return
-
-	def roll(self):
-		# do stuff
-		self.msg('ROLLIN\n', ['red'])
-		self.cmd('.r')
-
-	def do_turn(self, i):
-		if i.hasdebt:
-			self.strategy.handle_debt(i)
-			self.roll()
-		elif i.can_buyestate:
-			self.strategy.handle_purchase(i)
-		elif i.jailed:
-			self.strategy.handle_jail(i)
-		elif len(self.buttons) and not i.can_buyestate:
-			self.msg('%r\n'%self.buttons, ['red'])
-			self.strategy.handle_tax(i)
-		elif i.can_roll or i.canrollagain:
-			self.strategy.manage_estates(i)
-			self.roll()
 
 	def playerupdate(self, xml):
 		try:
