@@ -14,17 +14,20 @@ class GameState(gobject.GObject):
 	def msg(self, s, tags = []):
 		self.emit('msg', s, tags)
 
-	def game_over(self):
+	def game_init(self, players):
+		self.players = {}
 		self.groups = {}
 		self.estates = {}
-	def abort(self):
-		self.game_over()
-		self.players = {}
+
+		for p in players:
+			self.players[p.playerid] = p
 
 	def __init__(self):
 		super(GameState, self).__init__()
-		self.abort()
-		self.game_over()
+		self.over = False
+	
+	def game_over(self):
+		self.over = True
 
 	def estategroup(self, xml):
 		try:
@@ -67,16 +70,5 @@ class GameState(gobject.GObject):
 	def auctionupdate(self, xml):
 		#self.dumpxml(xml)
 		return
-
-	def deleteplayer(self, xml):
-		try:
-			pid = int(xml['playerid'])
-			p = self.players[pid]
-			del self.players[pid]
-		except KeyError, ValueError:
-			raise MonopError
-
-		self.msg('deleted player: ', ['bold'])
-		self.msg('%s\n'%p.name)
 
 gobject.type_register(GameState)

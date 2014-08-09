@@ -19,6 +19,6 @@ class Game(GameObj):
 			FieldTypeBool('unlimitedhouses'),
 			FieldTypeBool('norentinjail'),
 			FieldTypeInt('master')]
-	def __init__(self):
-		GameObj.__init__(self, Game.__types)
+	def __init__(self, updated = None):
+		GameObj.__init__(self, Game.__types, updated)
 

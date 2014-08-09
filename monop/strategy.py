@@ -21,8 +21,17 @@ class Strategy(gobject.GObject):
 		self.emit('msg', s, tags)
 	def cmd(self, s, tags = []):
 		self.emit('cmd', s)
+
 	def __init__(self):
 		super(Strategy, self).__init__()
+		self.s = None
+
+	def game_on(self, state):
+		self.s = state
+
+	def game_over(self):
+		# maybe save some win/loss stats?
+		return
 
 	def split_hand(self, hand):
 		out = []

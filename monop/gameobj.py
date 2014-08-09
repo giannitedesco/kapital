@@ -36,7 +36,7 @@ class GameObj(object):
 				setattr(self, k, v)
 			except AttributeError:
 				print 'BAD ATTRIBUTE', k, v
-				raise AttributeError
+				raise
 	def __str__(self):
 		try:
 			name = self.name
@@ -44,8 +44,8 @@ class GameObj(object):
 				raise AttributeError
 		except AttributeError:
 			return '%s(%s)'%(type(self).__name__,
-				' '.join(lambda k,v:'%s=%s'%(k,v.value),
-					self.__fields.values()))
+				' '.join(map(lambda x:'%s=%s'%(x[0].name,x[1]),
+					self.__fields.values())))
 		return '%s(%s)'%(type(self).__name__, name)
 	def __repr__(self):
 		return str(self)

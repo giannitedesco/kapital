@@ -111,6 +111,27 @@ class Client(gobject.GObject):
 		self.msg('gametype: ', ['bold'])
 		self.msg('%s, %s, %s\n'%(t.name, t.gametype, t.desc))
 
+	def game_status_update(self, g, v):
+		if v == 'config':
+			def state_msg(it, *_):
+				self.msg(*_)
+
+			self.s = GameState()
+			self.s.connect('msg', state_msg)
+		elif v == 'init':
+			p = filter(lambda x:x.game == g.gameid,
+					self.players.values())
+			self.s.game_init(p)
+		elif v == 'run':
+			self.strategy.game_on(self.s)
+		elif v == 'end':
+			self.strategy.game_over()
+			self.s.game_over()
+
+	def on_game_update(self, g, k, v):
+		if k == 'status':
+			self.game_status_update(g, v)
+
 	def gameupdate(self, xml):
 		try:
 			gid = int(xml['gameid'])
@@ -120,7 +141,7 @@ class Client(gobject.GObject):
 		if gid < 0:
 			return self.gametype(xml)
 
-		g = self.games.pop(gid, Game())
+		g = self.games.pop(gid, Game(self.on_game_update))
 		new = g.gameid == -1
 		g.update(xml)
 		self.games[g.gameid] = g
@@ -138,7 +159,7 @@ class Client(gobject.GObject):
 			self.msg('I AM MASTER, STARTING GAME\n', ['dark green'])
 			self.cmd('.gs')
 		elif g.canbejoined and g.description == 'robotwar' and \
-				self.s.players[self.pid].game == -1 and \
+				self.players[self.pid].game == -1 and \
 				g.status != 'config':
 			self.msg('JOINING GAME\n', ['red'])
 			self.cmd('.gj%d'%g.gameid)
@@ -154,7 +175,7 @@ class Client(gobject.GObject):
 		self.msg('deleted game: ', ['bold'])
 		self.msg('%s\n'%g.description)
 
-		if self.s.players[self.pid].game == gid:
+		if self.players[self.pid].game == gid:
 			self.abortgame()
 
 	def on_player_update(self, p, k, v):
@@ -176,6 +197,8 @@ class Client(gobject.GObject):
 			self.msg('%s now at %d\n'%(p.name, p.location))
 		elif k == 'image':
 			self.msg('%s now using avatar %s\n'%(p.name, p.image))
+		elif k == 'game':
+			gid = int(v)
 		else:
 			return
 
@@ -185,9 +208,9 @@ class Client(gobject.GObject):
 		except KeyError, ValueError:
 			raise MonopError
 
-		p = self.s.players.pop(pid, Player(self.on_player_update))
+		p = self.players.pop(pid, Player(self.on_player_update))
 		p.update(xml)
-		self.s.players[p.playerid] = p
+		self.players[p.playerid] = p
 
 		if pid == self.pid and not self.ready:
 			self.ready = True
@@ -199,11 +222,35 @@ class Client(gobject.GObject):
 				self.msg('I AM SECOND\n', ['red'])
 				self.cmd('.pi%s'%'lips.png')
 
+		if self.s is None or self.s.over:
+			return
 		if self.newturn or (len(self.buttons) and \
 					not self.current.can_buyestate):
 			if self.current.playerid == self.pid:
 				self.do_turn(self.current)
 				self.newturn = False
+
+	def deleteplayer(self, xml):
+		try:
+			pid = int(xml['playerid'])
+			p = self.players[pid]
+			del self.players[pid]
+		except KeyError, ValueError:
+			raise MonopError
+
+		self.msg('deleted player: ', ['bold'])
+		self.msg('%s\n'%p.name)
+
+	def estategroup(self, xml):
+		self.s.estategroup(xml)
+	def estate(self, xml):
+		self.s.estate(xml)
+	def configupdate(self, xml):
+		self.s.configupdate(xml)
+	def cardupdate(self, xml):
+		self.s.cardupdate(xml)
+	def auctionupdate(self, xml):
+		self.s.auctionupdate(xml)
 
 	def client(self, xml):
 		try:
@@ -229,7 +276,7 @@ class Client(gobject.GObject):
 		self.newturn = False
 		self.buttons = []
 		self.ready = False
-		self.s.game_over()
+		self.s = None
 
 	def abort(self):
 		self.sock = None
@@ -237,8 +284,8 @@ class Client(gobject.GObject):
 		self.cookie = None
 		self.gametypes = {}
 		self.games = {}
+		self.players = {}
 		self.svrnick = None
-		self.s.abort()
 		self.abortgame()
 
 	def __init__(self, disp = None, nick = 'MrMonopoly', strategy = None):
@@ -246,12 +293,6 @@ class Client(gobject.GObject):
 
 		self.disp = disp
 		self.nick = nick
-
-		def state_msg(it, *_):
-			self.msg(*_)
-
-		self.s = GameState()
-		self.s.connect('msg', state_msg)
 		self.abort()
 
 		def strategy_msg(it, *_):
@@ -261,7 +302,6 @@ class Client(gobject.GObject):
 		strategy.connect('msg', strategy_msg)
 		strategy.connect('cmd', strategy_cmd)
 		self.strategy = strategy
-		self.strategy.s = self.s
 
 	def dumpxml(self, n, depth = 0):
 		"Dump a XMLNode DOM"
@@ -309,17 +349,20 @@ class Client(gobject.GObject):
 					'updategamelist':ignore,
 					'deletegame':self.deletegame,
 
+					# misc
 					'display':self.display,
 					'msg':self.svrmsg,
 
-					# gamestate relevant
+					# both lobby and game
 					'playerupdate':self.playerupdate,
-					'deleteplayer':self.s.deleteplayer,
-					'configupdate':self.s.configupdate,
-					'estategroupupdate':self.s.estategroup,
-					'estateupdate':self.s.estate,
-					'cardupdate':self.s.cardupdate,
-					'auctionupdate':self.s.auctionupdate,
+					'deleteplayer':self.deleteplayer,
+
+					# gamestate relevant
+					'configupdate':self.configupdate,
+					'estategroupupdate':self.estategroup,
+					'estateupdate':self.estate,
+					'cardupdate':self.cardupdate,
+					'auctionupdate':self.auctionupdate,
 				}
 				if xml.name != 'monopd':
 					raise MonopError
