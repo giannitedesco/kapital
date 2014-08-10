@@ -118,14 +118,11 @@ class Graph(dict):
 
 
 def find_next(gn, ni, c):
-	for i in xrange(ni, len(c.estates)):
-		if c.estates[i].group < 0:
-			continue
-		g = c.groups[c.estates[i].group]
-		if gn != g.name:
-			continue
-		return i
-	for i in xrange(len(c.estates)):
+	"Find next square from a given square which is a member of a given "
+	"property group"
+
+	for i in xrange(ni, ni + len(c.estates)):
+		i %= len(c.estates)
 		if c.estates[i].group < 0:
 			continue
 		g = c.groups[c.estates[i].group]
@@ -135,6 +132,9 @@ def find_next(gn, ni, c):
 	return None
 
 def go_out(state, v, p, is_double, c, rij, closure):
+	"This is the guts of the build_model() function. It calculates the "
+	"weight of a given outgoing edge in the markov model."
+
 	i = state / c.JAIL_ROLLS
 	d = state % c.JAIL_ROLLS
 	e = c.estates[i]
@@ -206,6 +206,10 @@ def go_out(state, v, p, is_double, c, rij, closure):
 		closure(nxt, p)
 
 def build_model(dice, c, rij = True):
+	"Build markov model given dice roll probabilities, "
+	"a game configuration and whether to play the remain-in-jail or "
+	"leave jail strategy. A graph of the markov model is returned"
+
 	s = []
 	for i, e in enumerate(c.estates):
 		for d in xrange(c.JAIL_ROLLS):
@@ -234,15 +238,18 @@ def build_model(dice, c, rij = True):
 			g[ns, k] = v
 		#print sum(out.values())
 		#print
-	g.dump('markov%s.dot'%(rij and 'rij' or 'lj'), s)
+
+	#g.dump('markov-%s.dot'%(rij and 'rij' or 'lj'), s)
 	return g
 
-def mag_manhattan(a, b):
-	return np.sum(a - b)
-def mag_euclidian(a, b):
-	return np.linalg.norm(a - b)
+def do_eigenvector(A, k, d, epsilon=1e-5):
+	"Eigenvector centrality"
 
-def do_pagerank(A, k, d, epsilon=1e-5):
+	def mag_manhattan(a, b):
+		return np.sum(a - b)
+	def mag_euclidian(a, b):
+		return np.linalg.norm(a - b)
+
 	n = A.shape[0]
 	r = np.mat([[1.0 for x in k]])
 	t = np.mat([[1.0 for x in k]])
@@ -254,12 +261,12 @@ def do_pagerank(A, k, d, epsilon=1e-5):
 	while True:
 		if isr:
 			np.dot(t, A, r[0])
-			t[0] *= d
-			t[0] += k
+			#t[0] *= d
+			#t[0] += k
 		else:
 			np.dot(r, A, t[0])
-			r[0] *= d
-			r[0] += k
+			#r[0] *= d
+			#r[0] += k
 		cnt += 1
 
 		if mag(r, t) <= epsilon:
@@ -275,25 +282,31 @@ def do_pagerank(A, k, d, epsilon=1e-5):
 	return ret.tolist()[0]
 
 def pagerank(A, damping_factor = 0.85):
+	"Pagerank is eigenvector centrality with a damping factor"
 	n = A.shape[0]
 	c = (1.0 - damping_factor) / float(n)
 	k = [c for x in xrange(n)]
-	return do_pagerank(A, k, damping_factor)
+	return do_eigenvector(A, k, damping_factor)
 
 def eigenvector(A):
+	"Straght eigenvector centrality"
 	n = A.shape[0]
 	k = [0.0 for x in xrange(n)]
-	return do_pagerank(A, k, 1.0)
+	return do_eigenvector(A, k, 1.0)
 
 
 def steady_state(g, c):
+	"Create a stochastic matrix from graph g and find the "
+	"dominant eigenvector corresponding to eigenvalue 1.0"
+
 	A = np.mat(np.zeros([len(g.U), len(g.U)]))
 	for (x,y), v in g.items():
 		A[x,y] = v
 
 	#pr = pagerank(A)
-	pr = eigenvector(A)
+	return eigenvector(A)
 
+def print_tables(pr, c):
 	de = {}
 	dg = {}
 	for i,v in enumerate(pr):
@@ -314,8 +327,6 @@ def steady_state(g, c):
 			n = c.groups[k].name
 		print '%.3f%% %s'%(v * 100.0, n)
 
-	return
-
 def main(argv):
 	EXIT_SUCCESS = 0
 	EXIT_FAILURE = 1
@@ -329,14 +340,16 @@ def main(argv):
 	c = GameConf(open(argv[1]))
 
 	g = build_model(r, c, rij = True)
+	pr = steady_state(g, c)
 	print 'Steady state probabilities for RIJ model'
-	steady_state(g, c)
+	print_tables(pr, c)
 
 	print
 
 	g = build_model(r, c, rij = False)
-	print 'Steady state probabilities for LJ model'
 	steady_state(g, c)
+	print 'Steady state probabilities for LJ model'
+	print_tables(pr, c)
 
 	return EXIT_SUCCESS
 
