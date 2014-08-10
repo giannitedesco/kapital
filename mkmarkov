@@ -402,25 +402,26 @@ def steady_state(g, c):
 	#pr = pagerank(A)
 	pr = eigenvector(A)
 
-	e = {}
-	g = {}
+	de = {}
+	dg = {}
 	for i,v in enumerate(pr):
 		idx = i / 3
 		gdx = c.estates[idx].group
 		if gdx < 0:
 			gdx = -idx
-		e[idx] = e.get(idx, 0.0) + v
-		g[gdx] = g.get(gdx, 0.0) + v
+		de[idx] = de.get(idx, 0.0) + v
+		dg[gdx] = dg.get(gdx, 0.0) + v
 
-	for v, k in sorted([(v,k) for (k,v) in e.items()], reverse=True):
+	for v, k in sorted([(v,k) for (k,v) in de.items()], reverse=True):
 		print '%.3f%% %s'%(v * 100.0, c.estates[k].name)
 	print
-	for v, k in sorted([(v,k) for (k,v) in g.items()], reverse=True):
+	for v, k in sorted([(v,k) for (k,v) in dg.items()], reverse=True):
 		if k < 0:
 			n = c.estates[-k].name
 		else:
 			n = c.groups[k].name
 		print '%.3f%% %s'%(v * 100.0, n)
+
 	return
 
 def main(argv):
