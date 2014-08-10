@@ -32,10 +32,6 @@ class Roll(object):
 	def outcomes(self):
 		return self.__out
 
-class Cards(object):
-	def __init__(self, deck):
-		super(Cards, self).__init__()
-
 class Universe(frozenset):
 	def __new__(cls, card):
 		return super(Universe, cls).__new__(cls, xrange(card))
@@ -83,9 +79,6 @@ class Graph(dict):
 				ret.append(i)
 		return frozenset(ret)
 
-	def check(self):
-		return True
-
 	def dump(self, fn, names = None):
 		def q(s):
 			return '\"%s\"'%s
@@ -131,7 +124,7 @@ def find_next(gn, ni, c):
 		return i
 	return None
 
-def go_out(state, v, p, is_double, c, rij, closure):
+def go_out(state, v, p, is_double, c, rj, closure):
 	"This is the guts of the build_model() function. It calculates the "
 	"weight of a given outgoing edge in the markov model."
 
@@ -142,8 +135,8 @@ def go_out(state, v, p, is_double, c, rij, closure):
 	# if we're on go-to-jail, that means in-jail, the doubles counter
 	# represents the amount of time spent in there.
 	if i == c.tojail:
-		# for rij we bump the stay-counter for every non doubles turn
-		if rij and not is_double:
+		# for rj we bump the stay-counter for every non doubles turn
+		if rj and not is_double:
 			ni = i
 			nd = d + 1
 			# if we tried c.JAIL_ROLLS times, then move to
@@ -151,9 +144,9 @@ def go_out(state, v, p, is_double, c, rij, closure):
 			if nd >= c.JAIL_ROLLS:
 				ni = c.jail
 				nd = 0
-		elif not rij or is_double:
+		elif not rj or is_double:
 			# pay out at start of turn for lj strategy, or if
-			# we rolled a double in rij then it's the same thing
+			# we rolled a double in rj then it's the same thing
 			ni = c.jail + v
 			nd = 0
 	else:
@@ -205,7 +198,7 @@ def go_out(state, v, p, is_double, c, rij, closure):
 	else:
 		closure(nxt, p)
 
-def build_model(dice, c, rij = True):
+def build_model(dice, c, rj = True):
 	"Build markov model given dice roll probabilities, "
 	"a game configuration and whether to play the remain-in-jail or "
 	"leave jail strategy. A graph of the markov model is returned"
@@ -228,9 +221,9 @@ def build_model(dice, c, rij = True):
 
 		for v, Pr, Pd in dice.outcomes():
 			if Pr:
-				go_out(ns, v, Pr, False, c, rij, closure)
+				go_out(ns, v, Pr, False, c, rj, closure)
 			if Pd:
-				go_out(ns, v, Pd, True, c, rij, closure)
+				go_out(ns, v, Pd, True, c, rj, closure)
 
 		#print n
 		for v, k in sorted([(v,k) for (k,v) in out.items()]):
@@ -239,7 +232,7 @@ def build_model(dice, c, rij = True):
 		#print sum(out.values())
 		#print
 
-	#g.dump('markov-%s.dot'%(rij and 'rij' or 'lj'), s)
+	#g.dump('markov-%s.dot'%(rj and 'rj' or 'lj'), s)
 	return g
 
 def do_eigenvector(A, k, d, epsilon=1e-5):
@@ -277,7 +270,7 @@ def do_eigenvector(A, k, d, epsilon=1e-5):
 	if not isr:
 		r = t
 
-	print 'found after %d iterations'%cnt
+	print 'eigenvector found after %d iterations'%cnt
 	ret = r[0] * (1.0 / r[0].sum())
 	return ret.tolist()[0]
 
@@ -294,62 +287,65 @@ def eigenvector(A):
 	k = [0.0 for x in xrange(n)]
 	return do_eigenvector(A, k, 1.0)
 
+class Model(object):
+	def __init__(self, c, r, rj = False):
+		super(Model, self).__init__()
+		self.c = c
+		self.r = r
+		self.rj = rj
 
-def steady_state(g, c):
-	"Create a stochastic matrix from graph g and find the "
-	"dominant eigenvector corresponding to eigenvalue 1.0"
+		self.g = build_model(r, self.c, rj = self.rj)
+		self.x = self.steady_state(self.g, self.c)
 
-	A = np.mat(np.zeros([len(g.U), len(g.U)]))
-	for (x,y), v in g.items():
-		A[x,y] = v
+	def steady_state(self, g, c):
+		"Create a stochastic matrix from graph g and find the "
+		"dominant eigenvector corresponding to eigenvalue 1.0"
 
-	#pr = pagerank(A)
-	return eigenvector(A)
+		A = np.mat(np.zeros([len(g.U), len(g.U)]))
+		for (x,y), v in g.items():
+			A[x,y] = v
 
-def print_tables(pr, c):
-	de = {}
-	dg = {}
-	for i,v in enumerate(pr):
-		idx = i / 3
-		gdx = c.estates[idx].group
-		if gdx < 0:
-			gdx = -idx
-		de[idx] = de.get(idx, 0.0) + v
-		dg[gdx] = dg.get(gdx, 0.0) + v
+		#pr = pagerank(A)
+		return eigenvector(A)
 
-	for v, k in sorted([(v,k) for (k,v) in de.items()], reverse=True):
-		print '%.3f%% %s'%(v * 100.0, c.estates[k].name)
-	print
-	for v, k in sorted([(v,k) for (k,v) in dg.items()], reverse=True):
-		if k < 0:
-			n = c.estates[-k].name
-		else:
-			n = c.groups[k].name
-		print '%.3f%% %s'%(v * 100.0, n)
+	def print_tables(self):
+		print 'Steady-state probabilities for %s model'%(self.rj and \
+						"RIJ" or "LJ")
+		de = {}
+		dg = {}
+		for i,v in enumerate(self.x):
+			idx = i / 3
+			gdx = self.c.estates[idx].group
+			if gdx < 0:
+				gdx = -idx
+			de[idx] = de.get(idx, 0.0) + v
+			dg[gdx] = dg.get(gdx, 0.0) + v
+
+		for v, k in sorted([(v,k) for (k,v) in de.items()],
+					reverse=True):
+			print '%.3f%% %s'%(v * 100.0, self.c.estates[k].name)
+		print
+		for v, k in sorted([(v,k) for (k,v) in dg.items()],
+					reverse=True):
+			if k < 0:
+				n = self.c.estates[-k].name
+			else:
+				n = self.c.groups[k].name
+			print '%.3f%% %s'%(v * 100.0, n)
 
 def main(argv):
 	EXIT_SUCCESS = 0
 	EXIT_FAILURE = 1
 
-	#print 'Dice roll probabilities:'
-	r = Roll()
-	#for x in r.outcomes():
-	#	print ' o', x
-	#print
-
 	c = GameConf(open(argv[1]))
+	r = Roll()
 
-	g = build_model(r, c, rij = True)
-	pr = steady_state(g, c)
-	print 'Steady state probabilities for RIJ model'
-	print_tables(pr, c)
 
-	print
-
-	g = build_model(r, c, rij = False)
-	steady_state(g, c)
-	print 'Steady state probabilities for LJ model'
-	print_tables(pr, c)
+	#rj = Model(c, r, rj = True)
+	#rj.print_tables()
+	#print
+	lj = Model(c, r, rj = False)
+	lj.print_tables()
 
 	return EXIT_SUCCESS
 
