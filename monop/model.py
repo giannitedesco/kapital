@@ -217,7 +217,7 @@ class Model(object):
 
 	def calc_returns(self, c, de):
 		"Number of opponent rolls until break-even"
-		returns = []
+		returns = {}
 		for k,v in de.items():
 			e = c.estates[k]
 			if e.group < 0:
@@ -234,12 +234,12 @@ class Model(object):
 			r5 = (grp.houseprice * 5 + e.price) / (v * e.rent5)
 
 			t = (k, r0, r1, r2, r3, r4, r5)
-			returns.append(t)
+			returns[k] = t
 		return returns
 
 	def calc_amortized(self, c, de):
 		"Amortised returns. Where development cost is irrelevant."
-		ar = []
+		ar = {}
 		for k,v in de.items():
 			e = c.estates[k]
 			if e.group < 0:
@@ -256,7 +256,7 @@ class Model(object):
 			r5 = v * e.rent5
 
 			t = (k, r0, r1, r2, r3, r4, r5)
-			ar.append(t)
+			ar[k] = t
 
 		return ar
 
@@ -283,7 +283,7 @@ class Model(object):
 		for i in xrange(1, 7):
 			print 'Opponent turns to breakeven: %d houses'%(i-1)
 			for (v, k) in sorted([(x[i], x[0]) \
-						for x in self.returns]):
+					for x in self.returns.values()]):
 				print '%.3f %s'%(v, self.c.estates[k].name)
 			print
 
