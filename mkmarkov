@@ -296,6 +296,9 @@ class Model(object):
 
 		self.g = build_model(r, self.c, rj = self.rj)
 		self.x = self.steady_state(self.g, self.c)
+		(self.de, self.dg) = self.calc_tables(self.c, self.x)
+		self.returns = self.calc_returns(self.c, self.de)
+		self.amortized = self.calc_amortized(self.c, self.de)
 
 	def steady_state(self, g, c):
 		"Create a stochastic matrix from graph g and find the "
@@ -308,41 +311,26 @@ class Model(object):
 		#pr = pagerank(A)
 		return eigenvector(A)
 
-	def print_tables(self):
-		print 'Steady-state probabilities for %s model'%(self.rj and \
-						"RIJ" or "LJ")
+	def calc_tables(self, c, x):
 		de = {}
 		dg = {}
-		for i,v in enumerate(self.x):
+		for i,v in enumerate(x):
 			idx = i / 3
-			gdx = self.c.estates[idx].group
+			gdx = c.estates[idx].group
 			if gdx < 0:
-				gdx = self.c.estates[idx].name
+				gdx = c.estates[idx].name
 			de[idx] = de.get(idx, 0.0) + v
 			dg[gdx] = dg.get(gdx, 0.0) + v
+		return (de, dg)
 
-		print 'Chance of landing on a given space'
-		for v, k in sorted([(v,k) for (k,v) in de.items()],
-					reverse=True):
-			print '%.3f%% %s'%(v * 100.0, self.c.estates[k].name)
-		print
-
-		print 'Chance of landing on a member of a given group'
-		for v, k in sorted([(v,k) for (k,v) in dg.items()],
-					reverse=True):
-			if isinstance(k, str):
-				n = k
-			else:
-				n = self.c.groups[k].name
-			print '%.3f%% %s'%(v * 100.0, n)
-
-		# Number of opponent rolls until break-even
+	def calc_returns(self, c, de):
+		"Number of opponent rolls until break-even"
 		returns = []
 		for k,v in de.items():
-			e = self.c.estates[k]
+			e = c.estates[k]
 			if e.group < 0:
 				continue
-			grp = self.c.groups[e.group]
+			grp = c.groups[e.group]
 			if grp.houseprice < 0:
 				continue
 
@@ -355,22 +343,16 @@ class Model(object):
 
 			t = (k, r0, r1, r2, r3, r4, r5)
 			returns.append(t)
-		print
+		return returns
 
-		for i in xrange(1, 7):
-			print 'Opponent turns to breakeven: %d houses'%(i-1)
-			for (v, k) in sorted([(x[i], x[0]) for x in returns]):
-				#print '%.7f %s'%(v, self.c.estates[k].name)
-				print self.c.estates[k].name
-			print
-
-		# Amortised returns. Where development cost is irrelevant.
+	def calc_amortized(self, c, de):
+		"Amortised returns. Where development cost is irrelevant."
 		ar = []
 		for k,v in de.items():
-			e = self.c.estates[k]
+			e = c.estates[k]
 			if e.group < 0:
 				continue
-			grp = self.c.groups[e.group]
+			grp = c.groups[e.group]
 			if grp.houseprice < 0:
 				continue
 
@@ -383,6 +365,35 @@ class Model(object):
 
 			t = (k, r0, r1, r2, r3, r4, r5)
 			ar.append(t)
+
+		return ar
+
+	def print_tables(self):
+		print 'Steady-state probabilities for %s model'%(self.rj and \
+						"RIJ" or "LJ")
+
+		print 'Chance of landing on a given space'
+		for v, k in sorted([(v,k) for (k,v) in self.de.items()],
+					reverse=True):
+			print '%.3f%% %s'%(v * 100.0, self.c.estates[k].name)
+		print
+
+		print 'Chance of landing on a member of a given group'
+		for v, k in sorted([(v,k) for (k,v) in self.dg.items()],
+					reverse=True):
+			if isinstance(k, str):
+				n = k
+			else:
+				n = self.c.groups[k].name
+			print '%.3f%% %s'%(v * 100.0, n)
+		print
+
+		for i in xrange(1, 7):
+			print 'Opponent turns to breakeven: %d houses'%(i-1)
+			for (v, k) in sorted([(x[i], x[0]) \
+						for x in self.returns]):
+				print '%.3f %s'%(v, self.c.estates[k].name)
+			print
 
 def main(argv):
 	EXIT_SUCCESS = 0
