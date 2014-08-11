@@ -317,21 +317,72 @@ class Model(object):
 			idx = i / 3
 			gdx = self.c.estates[idx].group
 			if gdx < 0:
-				gdx = -idx
+				gdx = self.c.estates[idx].name
 			de[idx] = de.get(idx, 0.0) + v
 			dg[gdx] = dg.get(gdx, 0.0) + v
 
+		print 'Chance of landing on a given space'
 		for v, k in sorted([(v,k) for (k,v) in de.items()],
 					reverse=True):
 			print '%.3f%% %s'%(v * 100.0, self.c.estates[k].name)
 		print
+
+		print 'Chance of landing on a member of a given group'
 		for v, k in sorted([(v,k) for (k,v) in dg.items()],
 					reverse=True):
-			if k < 0:
-				n = self.c.estates[-k].name
+			if isinstance(k, str):
+				n = k
 			else:
 				n = self.c.groups[k].name
 			print '%.3f%% %s'%(v * 100.0, n)
+
+		# Number of opponent rolls until break-even
+		returns = []
+		for k,v in de.items():
+			e = self.c.estates[k]
+			if e.group < 0:
+				continue
+			grp = self.c.groups[e.group]
+			if grp.houseprice < 0:
+				continue
+
+			r0 = (grp.houseprice * 0 + e.price) / (v * e.rent0)
+			r1 = (grp.houseprice * 1 + e.price) / (v * e.rent1)
+			r2 = (grp.houseprice * 2 + e.price) / (v * e.rent2)
+			r3 = (grp.houseprice * 3 + e.price) / (v * e.rent3)
+			r4 = (grp.houseprice * 4 + e.price) / (v * e.rent4)
+			r5 = (grp.houseprice * 5 + e.price) / (v * e.rent5)
+
+			t = (k, r0, r1, r2, r3, r4, r5)
+			returns.append(t)
+		print
+
+		for i in xrange(1, 7):
+			print 'Opponent turns to breakeven: %d houses'%(i-1)
+			for (v, k) in sorted([(x[i], x[0]) for x in returns]):
+				#print '%.7f %s'%(v, self.c.estates[k].name)
+				print self.c.estates[k].name
+			print
+
+		# Amortised returns. Where development cost is irrelevant.
+		ar = []
+		for k,v in de.items():
+			e = self.c.estates[k]
+			if e.group < 0:
+				continue
+			grp = self.c.groups[e.group]
+			if grp.houseprice < 0:
+				continue
+
+			r0 = v * e.rent0
+			r1 = v * e.rent1
+			r2 = v * e.rent2
+			r3 = v * e.rent3
+			r4 = v * e.rent4
+			r5 = v * e.rent5
+
+			t = (k, r0, r1, r2, r3, r4, r5)
+			ar.append(t)
 
 def main(argv):
 	EXIT_SUCCESS = 0
@@ -341,9 +392,9 @@ def main(argv):
 	r = Roll()
 
 
-	#rj = Model(c, r, rj = True)
-	#rj.print_tables()
-	#print
+	rj = Model(c, r, rj = True)
+	rj.print_tables()
+	print
 	lj = Model(c, r, rj = False)
 	lj.print_tables()
 
