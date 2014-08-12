@@ -37,8 +37,7 @@ class Strategy(gobject.GObject):
 		out = []
 
 		# first build a set of estates in our hand
-		s = set()
-		s = s.union(map(lambda x:x.estateid, hand))
+		s = set(map(lambda x:x.estateid, hand))
 
 		# keep track of properties part of monopolies
 		mprops = set()
@@ -47,18 +46,16 @@ class Strategy(gobject.GObject):
 			# if the intersection of estates in a group is
 			# equal to the set of all estates in a group then
 			# we have a monopoly
-			if s.intersection(g.estates) == g.estates:
+			m = self.s.emap.get(g.groupid, frozenset())
+			if s.intersection(m) == m:
 				# so lets lookup all the estate objects
-				e = map(lambda x:self.s.estates[x], g.estates)
-
-				# sort by estateid
-				e.sort()
+				e = map(lambda x:self.s.estates[x], sorted(m))
 
 				# then append them to our results
 				out.append(e)
 
 				# and keep track of what we appended
-				mprops |= set(e)
+				mprops |= set(m)
 
 		# so that we can build a list of the remainder
 		misc = map(lambda x:self.s.estates[x],s - mprops)

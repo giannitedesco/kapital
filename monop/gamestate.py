@@ -22,6 +22,14 @@ class GameState(gobject.GObject):
 		for p in players:
 			self.players[p.playerid] = p
 
+	def game_on(self):
+		self.emap = {}
+		for k,v in self.groups.items():
+			s = frozenset(map(lambda x:x.estateid,
+					filter(lambda x:x.group == k,
+					self.estates.values())))
+			self.emap[k] = s
+
 	def __init__(self):
 		super(GameState, self).__init__()
 		self.over = False
@@ -48,12 +56,6 @@ class GameState(gobject.GObject):
 		e = self.estates.pop(eid, Estate())
 		e.update(xml)
 		self.estates[e.estateid] = e
-
-		if e.group >= 0 and self.groups.has_key(e.group):
-			# FIXME: here is where we add structure
-			g = self.groups[e.group]
-			g.estates = g.estates.union([e.estateid])
-
 
 	def configupdate(self, xml):
 		# TODO: strategy needs to know

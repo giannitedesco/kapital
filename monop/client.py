@@ -123,6 +123,7 @@ class Client(gobject.GObject):
 					self.players.values())
 			self.s.game_init(p)
 		elif v == 'run':
+			self.s.game_on()
 			self.strategy.game_on(self.s)
 		elif v == 'end':
 			self.strategy.game_over()

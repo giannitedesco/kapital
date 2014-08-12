@@ -27,8 +27,8 @@ class GameObj(object):
 				self.updated(self, attr, v)
 		else:
 			#print self.__class__.__name__, attr, 'not found', val
-			object.__setattr__(self,attr,val)
-			#raise AttributeError, '%s not found'%attr
+			#object.__setattr__(self,attr,val)
+			raise AttributeError, '%s not found'%attr
 
 	def update(self, xml):
 		for (k,v) in xml.attrib.items():
