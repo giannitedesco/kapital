@@ -1,25 +1,93 @@
 #!/usr/bin/python
 
+from argparse import ArgumentParser
 from monop.gameconf import GameConf
+from monop.gamestate import GameState
+from monop.player import Player
 from monop.dice import Dice
 from monop.model import Model
+from monop.strategy import Strategy
+from copy import copy
 
-def main(argv):
-	EXIT_SUCCESS = 0
-	EXIT_FAILURE = 1
+def game_from_conf(c, player):
+	gs = GameState()
+	enemy = Player()
+	enemy.name = 'Enemy'
+	enemy.playerid = player.playerid + 1
+	gs.game_init([player, enemy])
 
-	c = GameConf(open(argv[1]))
+	for i, e in enumerate(c.estates):
+		e = copy(e)
+		e.estateid = i
+		gs.estates[i] = e
+	for i, g in enumerate(c.groups):
+		g = copy(g)
+		g.groupid = i
+		gs.groups[g.groupid] = g
+	gs.game_on()
+	return gs
+
+def main():
+	opts = ArgumentParser(description='Test a game strategy')
+	opts.add_argument('cash', metavar='cash', type=int,
+				help = 'Amount of cash')
+	opts.add_argument('properties', metavar='property', type=int,
+				nargs='+',
+				help = 'Properties owned')
+	opts.add_argument('--config',
+				metavar = 'config',
+				type = str,
+				default = './configs/london.conf',
+				help = 'monopd config file')
+	opts.add_argument('--print-tables',
+				action = 'store_true',
+				default = False,
+				help = 'Print statistics tables')
+	opts.add_argument('--rij',
+				action = 'store_true',
+				default = False,
+				help = 'Remain-in-jail model')
+
+	args = opts.parse_args()
+
+	print 'Loading config fromm: %s'%args.config
+	c = GameConf(open(args.config))
 	d = Dice()
 
+	print 'Using %s strategy'%(args.rij and 'remain-in-jail' \
+					or 'leave-jail')
 
-	rj = Model(c, d, rj = True)
-	rj.print_tables()
+	m = Model(c, d, rj = args.rij)
+	if args.print_tables:
+		m.print_tables()
+
+	p= Player()
+	p.playerid = 0
+	p.name = 'player'
+	p.money = args.cash
+	gs = game_from_conf(c, p)
+
+	s = Strategy()
+	def strategy_msg(it, msg, tags):
+		print 'MSG', msg
+	def strategy_cmd(it, cmd):
+		print 'CMD', cmd
+	s.connect('msg', strategy_msg)
+	s.connect('cmd', strategy_cmd)
+	s.game_on(gs)
+	
 	print
-	lj = Model(c, d, rj = False)
-	lj.print_tables()
+	print 'Cash amount: %d'%args.cash
+	print 'Properties owned: %s'%(', '.join(map(str, args.properties)))
+	for e in map(lambda x:gs.estates[x], args.properties):
+		e.owner = p.playerid
+		print ' - ', e.name
+	print
 
-	return EXIT_SUCCESS
+	print 'Solution:'
+	s.manage_estates(p)
 
+	
 if __name__ == '__main__':
-	from sys import argv
-	raise SystemExit, main(argv)
+	main()
+	raise SystemExit, 0
