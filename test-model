@@ -8,6 +8,7 @@ from monop.dice import Dice
 from monop.model import Model
 from monop.strategy import Strategy
 from copy import copy
+import sys
 
 def game_from_conf(c, player):
 	gs = GameState()
@@ -18,6 +19,12 @@ def game_from_conf(c, player):
 
 	for i, e in enumerate(c.estates):
 		e = copy(e)
+		try:
+			g = c.groups[e.group]
+		except KeyError:
+			g = None
+		if g is not None and g.houseprice >= 0:
+			e.houseprice = g.houseprice
 		e.estateid = i
 		gs.estates[i] = e
 	for i, g in enumerate(c.groups):
@@ -69,11 +76,47 @@ def main():
 
 	s = Strategy()
 	def strategy_msg(it, msg, tags):
-		print 'MSG', msg
-	def strategy_cmd(it, cmd):
-		print 'CMD', cmd
+		color = {
+			'default':0,
+			'dark red':1,
+			'dark green':2,
+			'dark yellow':3,
+			'dark blue':4,
+			'dark magenta':5,
+			'dark cyan':6,
+			'light gray':7,
+			'light grey':7,
+			'dark gray':8,
+			'dark grey':8,
+			'red':9,
+			'green':10,
+			'yellow':11,
+			'blue':12,
+			'magenta':13,
+			'cyan':14,
+			'white':15,
+		}
+		b = False
+		c = color['default']
+		for t in tags:
+			if t == 'bold':
+				b = True
+			c = color.get(t, c)
+		sys.stdout.write('\033[%u;%dm%s\033[0m'%(b, 30 + c, msg))
+	m = []
+	def mortgage(it, estateid):
+		m.append(('mortgage', estateid))
+	def unmortgage(it, estateid):
+		m.append(('unmortgage', estateid))
+	def buy_house(it, estateid):
+		m.append(('buy-house', estateid))
+	def sell_house(it, estateid):
+		m.append(('sell-house', estateid))
 	s.connect('msg', strategy_msg)
-	s.connect('cmd', strategy_cmd)
+	s.connect('mortgage', mortgage)
+	s.connect('unmortgage', unmortgage)
+	s.connect('buy-house', buy_house)
+	s.connect('sell-house', sell_house)
 	s.game_on(gs)
 	
 	print
@@ -84,9 +127,20 @@ def main():
 		print ' - ', e.name
 	print
 
-	print 'Solution:'
+	print 'Simulating:'
 	s.manage_estates(p)
+	print
 
+	print 'Solution:'
+	for (move, estateid) in m:
+		e = c.estates[estateid]
+		g = c.groups[e.group]
+		print move, estateid, e.name
+		if move == 'buy-house':
+			p.money -= g.houseprice
+	print
+	
+	print 'Cash remaining: %u'%p.money
 	
 if __name__ == '__main__':
 	main()

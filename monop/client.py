@@ -41,16 +41,29 @@ class Client(gobject.GObject):
 
 	def do_turn(self, i):
 		if i.hasdebt:
+			self.msg('Strategy::handle_debt\n')
 			self.strategy.handle_debt(i)
 			self.roll()
 		elif i.can_buyestate:
-			self.strategy.handle_purchase(i)
+			self.msg('Strategy::handle_purchase\n')
+			if self.strategy.handle_purchase(i):
+				self.cmd('.eb')
+			else:
+				# TODO
+				self.cmd('.ea')
 		elif i.jailed:
-			self.strategy.handle_jail(i)
+			self.msg('Strategy::remain_in_jail\n')
+			if not self.strategy.remain_in_jail(i):
+				self.cmd('.jp')
 		elif len(self.buttons) and not i.can_buyestate:
 			self.msg('%r\n'%self.buttons, ['red'])
-			self.strategy.handle_tax(i)
+			self.msg('Strategy::pay_asset_tax\n')
+			if self.strategy.pay_asset_tax(i):
+				self.cmd('.T%')
+			else:
+				self.cmd('.T$')
 		elif i.can_roll or i.canrollagain:
+			self.msg('Strategy::manage_estates\n')
 			self.strategy.manage_estates(i)
 			self.roll()
 
@@ -296,12 +309,23 @@ class Client(gobject.GObject):
 		self.nick = nick
 		self.abort()
 
-		def strategy_msg(it, *_):
-			self.msg(*_)
-		def strategy_cmd(it, *_):
-			self.cmd(*_)
+		def strategy_msg(it, msg, tags):
+			self.msg(msg, tags)
+		def strategy_cmd(it, cmd):
+			self.cmd(cmd)
+		def mortgage(it, estateid):
+			self.cmd('.em%d'%estateid)
+		def unmortgage(it, estateid):
+			self.cmd('.em%d'%estateid)
+		def buy_house(it, estateid):
+			self.cmd('.hb%d'%estateid)
+		def sell_house(it, estateid):
+			self.cmd('.hs%d'%estateid)
 		strategy.connect('msg', strategy_msg)
-		strategy.connect('cmd', strategy_cmd)
+		strategy.connect('mortgage', mortgage)
+		strategy.connect('unmortgage', unmortgage)
+		strategy.connect('buy-house', buy_house)
+		strategy.connect('sell-house', sell_house)
 		self.strategy = strategy
 
 	def dumpxml(self, n, depth = 0):

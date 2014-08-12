@@ -14,13 +14,25 @@ class Strategy(gobject.GObject):
 		'msg': (gobject.SIGNAL_RUN_LAST,
 			gobject.TYPE_NONE, (gobject.TYPE_STRING,
 						gobject.TYPE_PYOBJECT)),
-		'cmd': (gobject.SIGNAL_RUN_LAST,
-			gobject.TYPE_NONE, (gobject.TYPE_STRING,)),
+		'mortgage': (gobject.SIGNAL_RUN_LAST,
+			gobject.TYPE_NONE, (gobject.TYPE_INT,)),
+		'unmortgage': (gobject.SIGNAL_RUN_LAST,
+			gobject.TYPE_NONE, (gobject.TYPE_INT,)),
+		'sell-house': (gobject.SIGNAL_RUN_LAST,
+			gobject.TYPE_NONE, (gobject.TYPE_INT,)),
+		'buy-house': (gobject.SIGNAL_RUN_LAST,
+			gobject.TYPE_NONE, (gobject.TYPE_INT,)),
 	}
 	def msg(self, s, tags = []):
 		self.emit('msg', s, tags)
-	def cmd(self, s, tags = []):
-		self.emit('cmd', s)
+	def mortgage(self, estateid): 
+		self.emit('mortgage', estateid)
+	def unmortgage(self, estateid): 
+		self.emit('unmortgage', estateid)
+	def sell_house(self, estateid): 
+		self.emit('sell-house', estateid)
+	def buy_house(self, estateid): 
+		self.emit('buy-house', estateid)
 
 	def __init__(self):
 		super(Strategy, self).__init__()
@@ -76,7 +88,7 @@ class Strategy(gobject.GObject):
 		for e in crap:
 			if raised >= target or e.mortgaged or e.houses > 0:
 				continue
-			self.cmd('.em%d'%e.estateid)
+			self.mortgage(e.estateid)
 			raised += e.mortgageprice
 
 		if raised >= target:
@@ -87,7 +99,7 @@ class Strategy(gobject.GObject):
 		for e in monoplist:
 			if raised >= target or e.mortgaged or e.houses > 0:
 				continue
-			self.cmd('.em%d'%e.estateid)
+			self.unmortgge(e.estateid)
 			raised += e.mortgageprice
 
 		if raised >= target:
@@ -103,7 +115,8 @@ class Strategy(gobject.GObject):
 			for e in g:
 				if e.houses <= 0:
 					continue
-				self.cmd('.hs%d'%e.estateid)
+				self.sell_house(e.estateid)
+				# FIXME
 				e.houses -= 1
 				raised += e.sellhouseprice
 
@@ -159,19 +172,19 @@ class Strategy(gobject.GObject):
 
 		if can_afford:
 			self.msg('BUYING IT, THEY HATIN\n', ['dark green'])
-			self.cmd('.eb')
+			return True
 		else:
 			self.msg('CANNOT AFFORD, AUCTION\n', ['red'])
-			#self.cmd('.ea')
+			return False
 
-	def handle_jail(self, i):
+	def remain_in_jail(self, i):
 		# decide whether to pay, use card, or what
 		if i.money < 50:
 			self.raise_cash(i, 50 - i.money)
 		self.msg('BUYING OUT OF JAIL\n', ['red'])
-		self.cmd('.jp')
+		return False
 
-	def handle_tax(self, p):
+	def pay_asset_tax(self, p):
 		self.msg('got %d bucks\n'%p.money)
 
 		e = self.s.estates[p.location]
@@ -190,10 +203,10 @@ class Strategy(gobject.GObject):
 		self.msg('fixed price is %d, assets is %d\n'%(fixed, money))
 		if money < fixed:
 			self.msg('PAYING PERCENTAGE\n', ['dark green'])
-			self.cmd('.T%')
+			return True
 		else:
 			self.msg('PAYING FIXED\n', ['red'])
-			self.cmd('.T$')
+			return False
 
 	def manage_estates(self, p):
 		money = p.money
@@ -208,7 +221,7 @@ class Strategy(gobject.GObject):
 			if money < e.unmortgageprice + reserve:
 				continue
 
-			self.cmd('.em%d'%e.estateid)
+			self.unmortgage(e.estateid)
 			money -= e.unmortgageprice
 
 		# buy houses
@@ -218,14 +231,15 @@ class Strategy(gobject.GObject):
 			if money < reserve + tc:
 				continue
 			if m[0].houses < 5:
-				self.msg('monopoly: buying a level on %s\n'%\
-					', '.join(map(lambda x:x.name, m)),
+				self.msg('monopoly: buying a level on %s for %d\n'%\
+					(self.s.groups[m[0].group].name, tc),
 					['bold', 'dark blue'])
 			for e in m:
 				if e.houses >= 5:
 					continue
 				self.msg(' - %r\n'%e, ['bold', 'dark blue'])
-				self.cmd('.hb%d'%e.estateid)
+				self.buy_house(e.estateid)
 				e.houses += 1
+			money -= tc
 
 gobject.type_register(Strategy)
