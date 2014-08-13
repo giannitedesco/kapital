@@ -49,7 +49,7 @@ class MarkovStrategy(Strategy):
 					continue
 				if raised >= target:
 					break
-				for num,e in sorted(lambda x:(x.houses,x),g,
+				for num,e in sorted(map(lambda x:(x.houses,x),g),
 							reverse=True):
 					if e.houses <= 0:
 						continue
