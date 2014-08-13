@@ -237,6 +237,9 @@ class MainWin(gtk.Window):
 	def msg(self, cl, *_):
 		self.log.msg(*_)
 
+	def smsg(self, cl, *_):
+		self.slog.msg(*_)
+
 	def __init__(self):
 		gtk.Window.__init__(self, gtk.WINDOW_TOPLEVEL)
 		self.in_main = False
@@ -257,10 +260,15 @@ class MainWin(gtk.Window):
 		agr.connect_group(k, m, gtk.ACCEL_VISIBLE, self.destroy)
 		self.add_accel_group(agr)
 
-		scr = gtk.ScrolledWindow()
-		scr.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
+		lscr = gtk.ScrolledWindow()
+		lscr.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
 		self.log = BotLog()
-		scr.add(self.log)
+		lscr.add(self.log)
+
+		sscr = gtk.ScrolledWindow()
+		sscr.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
+		self.slog = BotLog()
+		sscr.add(self.slog)
 
 		entry = gtk.Entry()
 		entry.connect('activate', self.enter)
@@ -268,7 +276,8 @@ class MainWin(gtk.Window):
 		self.board = Board(self.draw_box)
 
 		nb = gtk.Notebook()
-		nb.append_page(scr, gtk.Label('Log'))
+		nb.append_page(lscr, gtk.Label('Log'))
+		nb.append_page(sscr, gtk.Label('Strategy Log'))
 		nb.append_page(self.board, gtk.Label('Game State'))
 
 		vb = gtk.VBox()
@@ -281,6 +290,7 @@ class MainWin(gtk.Window):
 		self.client = MonopClient(self.disp, strategy = s)
 
 		self.client.connect('msg', self.msg)
+		self.client.connect('strategy-msg', self.smsg)
 		self.client.connect('updated', self.redraw)
 
 		hb = gtk.HPaned()

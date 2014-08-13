@@ -20,12 +20,17 @@ class Client(gobject.GObject):
 		'msg': (gobject.SIGNAL_RUN_LAST,
 			gobject.TYPE_NONE, (gobject.TYPE_STRING,
 						gobject.TYPE_PYOBJECT)),
+		'strategy-msg': (gobject.SIGNAL_RUN_LAST,
+			gobject.TYPE_NONE, (gobject.TYPE_STRING,
+						gobject.TYPE_PYOBJECT)),
 		'updated': (gobject.SIGNAL_RUN_LAST,
 			gobject.TYPE_NONE, ()),
 	}
 
 	def msg(self, s, tags = []):
 		self.emit('msg', s, tags)
+	def smsg(self, s, tags = []):
+		self.emit('strategy-msg', s, tags)
 
 	def cmd(self, s):
 		#from time import sleep
@@ -306,9 +311,7 @@ class Client(gobject.GObject):
 
 	def change_strategy(self, strategy):
 		def strategy_msg(it, msg, tags):
-			self.msg(msg, tags)
-		def strategy_cmd(it, cmd):
-			self.cmd(cmd)
+			self.smsg(msg, tags)
 		def mortgage(it, estateid):
 			self.cmd('.em%d'%estateid)
 		def unmortgage(it, estateid):
