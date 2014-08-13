@@ -302,13 +302,7 @@ class Client(gobject.GObject):
 		self.svrnick = None
 		self.abortgame()
 
-	def __init__(self, disp = None, nick = 'MrMonopoly', strategy = None):
-		gobject.GObject.__init__(self)
-
-		self.disp = disp
-		self.nick = nick
-		self.abort()
-
+	def change_strategy(self, strategy):
 		def strategy_msg(it, msg, tags):
 			self.msg(msg, tags)
 		def strategy_cmd(it, cmd):
@@ -327,6 +321,14 @@ class Client(gobject.GObject):
 		strategy.connect('buy-house', buy_house)
 		strategy.connect('sell-house', sell_house)
 		self.strategy = strategy
+
+	def __init__(self, disp = None, nick = 'MrMonopoly', strategy = None):
+		gobject.GObject.__init__(self)
+
+		self.disp = disp
+		self.nick = nick
+		self.abort()
+		self.change_strategy(strategy)
 
 	def dumpxml(self, n, depth = 0):
 		"Dump a XMLNode DOM"

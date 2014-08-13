@@ -181,8 +181,6 @@ class MarkovStrategy(Strategy):
 	def manage_estates(self, p):
 		reserve = 200
 		money = p.money - reserve
-		self.msg('Manage estates: %u cash - reserve %u = %u\n'%(
-			p.money, reserve, money))
 
 		hand = self.hand(p)
 		(monopolies, misc) = self.split_hand(hand)
@@ -230,7 +228,16 @@ class MarkovStrategy(Strategy):
 		#		self.msg('\n')
 
 		(returns, l) = self.optimal_moves(b, money)
-		self.msg('optimal (expected return %.5f):\n'%returns, ['bold'])
+		shout = False
+		for actions in l:
+			for action,estateid in actions:
+				shout = True
+				break
+		if shout:
+			self.msg('optimal (expected return %.5f):\n'%returns,
+					['bold'])
+			self.msg('Manage estates: %u cash - reserve %u = %u\n'%(
+				p.money, reserve, money), ['bold'])
 		for actions in l:
 			for action,estateid in actions:
 				a = action.__func__.func_name
