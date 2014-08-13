@@ -145,7 +145,7 @@ class MarkovStrategy(Strategy):
 			return
 
 		# Start with a "do nothing" option
-		ret = [((0,0),[])]
+		ret = [(0,0,[])]
 
 		# Add an option to unmortgage them all, if any are mortgaged
 		mc = 0
@@ -158,7 +158,7 @@ class MarkovStrategy(Strategy):
 			after = m.amortized[e.estateid][2]
 			mv += after - before
 		if ml:
-			ret.append(((mc, mv), ml))
+			ret.append((mc, mv, ml))
 
 		# If development is uneven, add an option to even them out
 		prebuy = {}
@@ -183,7 +183,7 @@ class MarkovStrategy(Strategy):
 					[2 + e.houses - int(e.mortgaged)]
 				after = m.amortized[e.estateid][2 + numhi]
 				ev += after - before
-			ret.append(((ec, ev), el))
+			ret.append((ec, ev, el))
 
 		# Then add an option to buy n levels of houses starting
 		# from an even base and ending with all hotels
@@ -200,7 +200,7 @@ class MarkovStrategy(Strategy):
 				diff = after - before
 			cost = g[0].houseprice * len(g) * \
 					(nl - nh[0][0]) + ec
-			ret.append(((cost, diff), el + things))
+			ret.append((cost, diff, el + things))
 		return ret
 
 	def optimal_moves(self, b, max_weight):
@@ -212,7 +212,7 @@ class MarkovStrategy(Strategy):
 				if vsofar > bestv:
 					out[0] = (vsofar, cur[:])
 				return
-			for ((w, v), _) in bleft[0]:
+			for (w, v, _) in bleft[0]:
 				cur.append(_)
 				recursive(cur, bleft[1:], vsofar + v,
 					max_weight - w, out)
@@ -245,13 +245,13 @@ class MarkovStrategy(Strategy):
 				v = m.de[e.estateid] * 50
 
 			if e.mortgaged:
-				bucket = ((e.unmortgageprice, v),
+				bucket = (e.unmortgageprice, v,
 						[(self.unmortgage, e.estateid)])
 			else:
-				bucket = ((-e.mortgageprice, -v),
+				bucket = (-e.mortgageprice, -v,
 						[(self.mortgage, e.estateid)])
 
-			b.append([((0, 0.0), []), bucket])
+			b.append([(0, 0.0, []), bucket])
 
 		for g in monopolies:
 			x = self.management_choices(m, g)
