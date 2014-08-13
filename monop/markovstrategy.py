@@ -4,6 +4,7 @@ from model import Model
 from functools import reduce
 import operator
 import gobject
+from math import factorial
 
 class MarkovStrategy(Strategy):
 	def __init__(self, conf):
@@ -41,18 +42,24 @@ class MarkovStrategy(Strategy):
 
 		# now to sell houses, sell entire rows at once
 		# just to keep it simple
-		for g in monopolies:
-			if True in map(lambda x:x.mortgaged,g):
-				continue
-			if raised >= target:
-				break
-			for e in g:
-				if e.houses <= 0:
+		while raised < target:
+			this_time = 0
+			for g in monopolies:
+				if False not in map(lambda x:x.mortgaged,g):
 					continue
-				self.sell_house(e.estateid)
-				# FIXME
-				e.houses -= 1
-				raised += e.sellhouseprice
+				if raised >= target:
+					break
+				for num,e in sorted(lambda x:(x.houses,x),g,
+							reverse=True):
+					if e.houses <= 0:
+						continue
+					self.sell_house(e.estateid)
+					# FIXME
+					e.houses -= 1
+					this_time += e.sellhouseprice
+			if not this_time:
+				break
+			raised += this_time
 
 		# shouldn't really be possible, we're bust
 		return raised
@@ -66,6 +73,7 @@ class MarkovStrategy(Strategy):
 
 		raised = self.do_raise_cash(target, hand)
 		if raised < target:
+			# should never get here
 			self.msg('only raised %d bucks\n'%raised,
 				['bold','red'])
 			return False
@@ -129,33 +137,65 @@ class MarkovStrategy(Strategy):
 			return False
 
 	def management_choices(self, m, g):
-		nh = sorted(map(lambda x:x.houses, g))
+		# exclude utilities and railroads
 		if g[0].houseprice <= 0:
+			# FIXME: should at least unmortgage them
 			return
 
-		# FIXME: assert even development
-		assert(nh[0], nh[-1])
+		# Start with a "do nothing" option
+		ret = [((0,0),[])]
 
+		# Add an option to unmortgage them all, if any are mortgaged
 		mc = 0
+		mv = 0.0
 		ml = []
 		for e in filter(lambda x:x.mortgaged, g):
 			ml.append((self.unmortgage, e.estateid))
 			mc += e.unmortgageprice
+		if ml:
+			ret.append(((mc, mv), ml))
 
-		ret = [((0,0),[])]
-		for nl in xrange(nh[0] + 1, 6):
+		# If development is uneven, add an option to even them out
+		prebuy = {}
+		el = ml[:]
+		ev = mv
+		ec = 0.0
+		while True:
+			nh = sorted(map(lambda x:(x.houses +
+						prebuy.get(x.estateid, 0),
+					x), g))
+			numlo, lo = nh[0]
+			numhi, hi = nh[-1]
+
+			if numlo == numhi:
+				break
+			el.append((self.buy_house, lo.estateid))
+			ec += lo.houseprice
+			prebuy[lo.estateid] = prebuy.get(lo.estateid, 0) + 1
+		if len(el) > len(ml):
+			for e in map(lambda x:self.s.estates[x], prebuy.keys()):
+				before = m.amortized[e.estateid]\
+					[2 + e.houses - int(e.mortgaged)]
+				after = m.amortized[e.estateid][2 + numhi]
+				ev += after - before
+			ret.append(((ec, ev/ec), el))
+
+		# Then add an option to buy n levels of houses starting
+		# from an even base and ending with all hotels
+		for nl in xrange(nh[0][0] + 1, 6):
 			things = []
-			for j in xrange(0, nl):
+			for j in xrange(nh[0][0], nl):
 				for e in g:
 					things.append((self.buy_house,
 							e.estateid))
 			for e in g:
-				before = m.amortized[e.estateid][2 + e.houses - int(e.mortgaged)]
+				before = m.amortized[e.estateid]\
+					[2 + e.houses - int(e.mortgaged)]
 				after = m.amortized[e.estateid][2 + nl]
 				diff = after - before
 			cost = g[0].houseprice * len(g) * \
-					(nl - g[0].houses) + mc
-			ret.append(((cost, diff/cost), ml + things))
+					(nl - nh[0][0]) + ec
+			ret.append(((cost, diff/cost), el + things))
 		return ret
 
 	def optimal_moves(self, b, max_weight):
@@ -180,6 +220,8 @@ class MarkovStrategy(Strategy):
 	def manage_estates(self, p):
 		reserve = 200
 		money = p.money - reserve
+		if money < 0:
+			return
 
 		hand = self.hand(p)
 		(monopolies, misc) = self.split_hand(hand)
@@ -227,16 +269,18 @@ class MarkovStrategy(Strategy):
 		#		self.msg('\n')
 
 		(returns, l) = self.optimal_moves(b, money)
+		if returns < 0:
+			return
 		shout = False
 		for actions in l:
 			for action,estateid in actions:
 				shout = True
 				break
 		if shout:
-			self.msg('optimal (expected return %.5f):\n'%returns,
-					['bold'])
 			self.msg('Manage estates: %u cash - reserve %u = %u\n'%(
 				p.money, reserve, money), ['bold'])
+			self.msg('Optimal (expected return %.5f):\n'%returns,
+					['bold'])
 		for actions in l:
 			for action,estateid in actions:
 				a = action.__func__.func_name

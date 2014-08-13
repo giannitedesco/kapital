@@ -70,6 +70,8 @@ def main():
 	p.name = 'player'
 	p.money = args.cash
 	gs = game_from_conf(c, p)
+	#gs.estates[6].houses = 1
+	#gs.estates[5].mortgaged = True
 
 	s = MarkovStrategy(c)
 	def strategy_msg(it, msg, tags):
