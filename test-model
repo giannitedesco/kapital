@@ -40,7 +40,7 @@ def main():
 	opts = ArgumentParser(description='Test a game strategy')
 	opts.add_argument('cash', metavar='cash', type=int,
 				help = 'Amount of cash')
-	opts.add_argument('properties', metavar='property', type=int,
+	opts.add_argument('properties', metavar='property', type=str,
 				nargs='+',
 				help = 'Properties owned')
 	opts.add_argument('--config',
@@ -122,17 +122,35 @@ def main():
 	print
 	print 'Cash amount: %d'%args.cash
 	print 'Properties owned: %s'%(', '.join(map(str, args.properties)))
-	for e in map(lambda x:gs.estates[x], args.properties):
+	for a in args.properties:
+		mort = False
+		nh = 0
+		try:
+			eid, nh = a.split(':',1)
+		except ValueError:
+			if a[-1] == 'm':
+				mort = True
+				eid = a[:-1]
+			else:
+				eid = a
+		eid = int(eid)
+		nh = int(nh)
+		e = gs.estates[eid]
 		if e.group < 0:
 			raise Exception('%s can\'t be owned'%e.name)
 		e.owner = p.playerid
-		print ' - ', e.name
+		e.houses = nh
+		e.mortgaged = mort
+		print ' - %s%s%s'%(e.name,
+					mort and ' (mortgaged)' or '',
+					nh and ' (%u houses)'%nh or '')
 	print
 
 	print 'Simulating:'
 	s.manage_estates(p)
 	print
 
+	# TODO: validate the solution abides by the rules
 	print 'Solution:'
 	for (move, estateid) in m:
 		e = gs.estates[estateid]
@@ -140,12 +158,16 @@ def main():
 		print move, estateid, e.name
 		if move == 'buy-house':
 			p.money -= e.houseprice
+			e.houses += 1
 		elif move == 'sell-house':
 			p.money += e.sellhouseprice
+			e.houses -= 1
 		elif move == 'mortgage':
 			p.money += e.mortgageprice
+			e.mortgaged = True
 		elif move == 'unmortgage':
 			p.money -= e.unmortgageprice
+			e.mortgaged = False
 	print
 	
 	print 'Cash remaining: %u'%p.money
