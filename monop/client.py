@@ -404,6 +404,8 @@ class Client(gobject.GObject):
 				self.msg('Barfed on XML: %s\n'%msg, ['red'])
 			try:
 				transition(xml)
+			except NotImplemented:
+				self.dumpxml(xml)
 			except MonopError, e:
 				self.msg('Barfed on message:\n', ['red'])
 				self.dumpxml(xml)

@@ -70,7 +70,6 @@ class GameState(gobject.GObject):
 		self.msg('player %d gets card %d\n'%(owner, cardid), ['purple'])
 
 	def auctionupdate(self, xml):
-		#self.dumpxml(xml)
-		return
+		raise NotImplemented
 
 gobject.type_register(GameState)
