@@ -6,7 +6,7 @@ from monop.gamestate import GameState
 from monop.player import Player
 from monop.dice import Dice
 from monop.model import Model
-from monop.strategy import Strategy
+from monop.simplestrategy import SimpleStrategy
 from copy import copy
 import sys
 
@@ -74,7 +74,7 @@ def main():
 	p.money = args.cash
 	gs = game_from_conf(c, p)
 
-	s = Strategy()
+	s = SimpleStrategy()
 	def strategy_msg(it, msg, tags):
 		color = {
 			'default':0,
