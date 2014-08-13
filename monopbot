@@ -3,7 +3,8 @@
 import gobject, gtk, pango
 from os import listdir
 from cairo import ImageSurface
-from monop import Board, SimpleStrategy, Client as MonopClient
+from monop import Board, GameConf, MarkovStrategy, \
+			SimpleStrategy, Client as MonopClient
 
 class MonopDisplay(gtk.VBox):
 	def __init__(self, cmd):
@@ -269,9 +270,10 @@ class MainWin(gtk.Window):
 		vb.pack_start(nb, True, True)
 		vb.pack_start(entry, False, False)
 
+		s = SimpleStrategy()
+		s = MarkovStrategy(GameConf(open('./configs/london.conf')))
 		self.disp = MonopDisplay(self.cmd)
-		self.client = MonopClient(self.disp,
-					strategy = SimpleStrategy())
+		self.client = MonopClient(self.disp, strategy = s)
 
 		self.client.connect('msg', self.msg)
 		self.client.connect('updated', self.redraw)

@@ -4,9 +4,8 @@ from argparse import ArgumentParser
 from monop.gameconf import GameConf
 from monop.gamestate import GameState
 from monop.player import Player
-from monop.dice import Dice
-from monop.model import Model
 from monop.simplestrategy import SimpleStrategy
+from monop.markovstrategy import MarkovStrategy 
 from copy import copy
 import sys
 
@@ -19,14 +18,17 @@ def game_from_conf(c, player):
 
 	for i, e in enumerate(c.estates):
 		e = copy(e)
-		try:
-			g = c.groups[e.group]
-		except KeyError:
-			g = None
-		if g is not None and g.houseprice >= 0:
-			e.houseprice = g.houseprice
 		e.estateid = i
+		if e.group >= 0:
+			g = c.groups[e.group]
+			e.houseprice = g.houseprice
+			if not e.price:
+				e.price = g.price
+			e.mortgageprice = int(e.price / 2.0)
+			e.unmortgageprice = int((e.price/2.0) * 1.1)
+			e.sellhouseprice = int((e.houseprice)/2.0)
 		gs.estates[i] = e
+
 	for i, g in enumerate(c.groups):
 		g = copy(g)
 		g.groupid = i
@@ -59,50 +61,45 @@ def main():
 
 	print 'Loading config fromm: %s'%args.config
 	c = GameConf(open(args.config))
-	d = Dice()
 
 	print 'Using %s strategy'%(args.rij and 'remain-in-jail' \
 					or 'leave-jail')
 
-	m = Model(c, d, rj = args.rij)
-	if args.print_tables:
-		m.print_tables()
-
-	p= Player()
+	p = Player()
 	p.playerid = 0
 	p.name = 'player'
 	p.money = args.cash
 	gs = game_from_conf(c, p)
 
-	s = SimpleStrategy()
+	s = MarkovStrategy(c)
 	def strategy_msg(it, msg, tags):
 		color = {
-			'default':0,
-			'dark red':1,
-			'dark green':2,
-			'dark yellow':3,
-			'dark blue':4,
-			'dark magenta':5,
-			'dark cyan':6,
-			'light gray':7,
-			'light grey':7,
-			'dark gray':8,
-			'dark grey':8,
-			'red':9,
-			'green':10,
-			'yellow':11,
-			'blue':12,
-			'magenta':13,
-			'cyan':14,
-			'white':15,
+			'default':(0, 0),
+			'dark red':(0, 31),
+			'dark green':(0, 32),
+			'dark yellow':(0, 33),
+			'dark blue':(0, 34),
+			'dark magenta':(0, 35),
+			'dark cyan':(0, 36),
+			'light gray':(0, 37),
+			'light grey':(0, 37),
+			'dark gray':(0, 38),
+			'dark grey':(0, 38),
+			'red':(1, 31),
+			'green':(1, 32),
+			'yellow':(1, 33),
+			'blue':(1,34),
+			'magenta':(1,35),
+			'cyan':(1, 36),
+			'white':(1, 37),
 		}
-		b = False
-		c = color['default']
+		b, c = color['default']
 		for t in tags:
 			if t == 'bold':
-				b = True
-			c = color.get(t, c)
-		sys.stdout.write('\033[%u;%dm%s\033[0m'%(b, 30 + c, msg))
+				b,c = True, 40
+			else:
+				(b, c) = color.get(t, (b, c))
+		sys.stdout.write('\033[%u;%dm%s\033[0m'%(b, c, msg))
 	m = []
 	def mortgage(it, estateid):
 		m.append(('mortgage', estateid))
@@ -123,6 +120,8 @@ def main():
 	print 'Cash amount: %d'%args.cash
 	print 'Properties owned: %s'%(', '.join(map(str, args.properties)))
 	for e in map(lambda x:gs.estates[x], args.properties):
+		if e.group < 0:
+			raise Exception('%s can\'t be owned'%e.name)
 		e.owner = p.playerid
 		print ' - ', e.name
 	print
@@ -133,11 +132,17 @@ def main():
 
 	print 'Solution:'
 	for (move, estateid) in m:
-		e = c.estates[estateid]
-		g = c.groups[e.group]
+		e = gs.estates[estateid]
+		g = gs.groups[e.group]
 		print move, estateid, e.name
 		if move == 'buy-house':
-			p.money -= g.houseprice
+			p.money -= e.houseprice
+		elif move == 'sell-house':
+			p.money += e.sellhouseprice
+		elif move == 'mortgage':
+			p.money += e.mortgageprice
+		elif move == 'unmortgage':
+			p.money -= e.unmortgageprice
 	print
 	
 	print 'Cash remaining: %u'%p.money

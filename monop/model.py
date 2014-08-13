@@ -227,13 +227,14 @@ class Model(object):
 				continue
 
 			r0 = (grp.houseprice * 0 + e.price) / (v * e.rent0)
-			r1 = (grp.houseprice * 1 + e.price) / (v * e.rent1)
-			r2 = (grp.houseprice * 2 + e.price) / (v * e.rent2)
-			r3 = (grp.houseprice * 3 + e.price) / (v * e.rent3)
-			r4 = (grp.houseprice * 4 + e.price) / (v * e.rent4)
-			r5 = (grp.houseprice * 5 + e.price) / (v * e.rent5)
+			r1 = (grp.houseprice * 0 + e.price) / (v * e.rent0 * 2)
+			r2 = (grp.houseprice * 1 + e.price) / (v * e.rent1)
+			r3 = (grp.houseprice * 2 + e.price) / (v * e.rent2)
+			r4 = (grp.houseprice * 3 + e.price) / (v * e.rent3)
+			r5 = (grp.houseprice * 4 + e.price) / (v * e.rent4)
+			r6 = (grp.houseprice * 5 + e.price) / (v * e.rent5)
 
-			t = (k, r0, r1, r2, r3, r4, r5)
+			t = (k, r0, r1, r2, r3, r4, r5, r6)
 			returns[k] = t
 		return returns
 
@@ -249,13 +250,14 @@ class Model(object):
 				continue
 
 			r0 = v * e.rent0
-			r1 = v * e.rent1
-			r2 = v * e.rent2
-			r3 = v * e.rent3
-			r4 = v * e.rent4
-			r5 = v * e.rent5
+			r1 = v * e.rent0 * 2
+			r2 = v * e.rent1
+			r3 = v * e.rent2
+			r4 = v * e.rent3
+			r5 = v * e.rent4
+			r6 = v * e.rent5
 
-			t = (k, r0, r1, r2, r3, r4, r5)
+			t = (k, r0, r1, r2, r3, r4, r5, r6)
 			ar[k] = t
 
 		return ar
