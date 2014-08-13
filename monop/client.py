@@ -47,29 +47,24 @@ class Client(gobject.GObject):
 
 	def do_turn(self, i):
 		if i.hasdebt:
-			self.msg('Strategy::handle_debt\n')
 			self.strategy.handle_debt(i)
 			self.roll()
 		elif i.can_buyestate:
-			self.msg('Strategy::handle_purchase\n')
 			if self.strategy.handle_purchase(i):
 				self.cmd('.eb')
 			else:
 				# TODO
 				self.cmd('.ea')
 		elif i.jailed:
-			self.msg('Strategy::remain_in_jail\n')
 			if not self.strategy.remain_in_jail(i):
 				self.cmd('.jp')
 		elif len(self.buttons) and not i.can_buyestate:
 			self.msg('%r\n'%self.buttons, ['red'])
-			self.msg('Strategy::pay_asset_tax\n')
 			if self.strategy.pay_asset_tax(i):
 				self.cmd('.T%')
 			else:
 				self.cmd('.T$')
 		elif i.can_roll or i.canrollagain:
-			self.msg('Strategy::manage_estates\n')
 			self.strategy.manage_estates(i)
 			self.roll()
 

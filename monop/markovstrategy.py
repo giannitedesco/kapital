@@ -86,13 +86,15 @@ class MarkovStrategy(Strategy):
 		e = self.s.estates[p.location]
 		due = self.due(p, e)
 		if due <= 0:
-			self.msg('not sure what to do\n')
+			self.msg('not sure what to do\n', ['bold', 'red'])
 			due = 100
 		self.raise_cash(p, due)
 
 	def handle_purchase(self, p):
 		e = self.s.estates[p.location]
-		self.msg('price is %d, i gots %d\n'%(e.price, p.money))
+		self.msg('price of %s is %d, i gots %d\n'%(e.name,
+							e.price,
+							p.money))
 		if e.price > p.money:
 			can_afford = self.raise_cash(p, e.price - p.money)
 		else:
