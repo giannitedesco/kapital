@@ -212,19 +212,19 @@ class MarkovStrategy(Strategy):
 				b.append(x)
 		t = {'mortgage':'red',
 			'unmortgage':'green',
-			'buy_house':'cyan',
-			'sell_house':'magenta',
+			'buy_house':'blue',
+			'sell_house':'purple',
 		}
 
-		for x in b:
-			self.msg('bucket:\n', ['bold'])
-			for ((weight, value), actions) in x:
-				self.msg('w=%d v=%.5f\n'%(weight, value))
-				for action,estateid in actions:
-					a = action.__func__.func_name
-					self.msg('%s'%a, [t.get(a, 'yellow')])
-					self.msg(' %s\n'%self.s.estates[estateid].name)
-				self.msg('\n')
+		#for x in b:
+		#	self.msg('bucket:\n', ['bold'])
+		#	for ((weight, value), actions) in x:
+		#		self.msg('w=%d v=%.5f\n'%(weight, value))
+		#		for action,estateid in actions:
+		#			a = action.__func__.func_name
+		#			self.msg('%s'%a, [t.get(a, 'yellow')])
+		#			self.msg(' %s\n'%self.s.estates[estateid].name)
+		#		self.msg('\n')
 
 		(returns, l) = self.optimal_moves(b, money)
 		shout = False
