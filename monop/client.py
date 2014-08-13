@@ -3,6 +3,7 @@ import gobject, glib
 from linesock import LineSock
 from xmlhelper import parse_xml_string
 from collections import namedtuple
+from simplestrategy import SimpleStrategy
 
 from gametype import GameType
 from gameobj import GameObj
@@ -176,6 +177,7 @@ class Client(gobject.GObject):
 				self.players[self.pid].game == -1 and \
 				g.status != 'config':
 			self.msg('JOINING GAME\n', ['red'])
+			#self.change_strategy(SimpleStrategy())
 			self.cmd('.gj%d'%g.gameid)
 
 	def deletegame(self, xml):

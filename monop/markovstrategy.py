@@ -142,10 +142,10 @@ class MarkovStrategy(Strategy):
 			ml.append((self.unmortgage, e.estateid))
 			mc += e.unmortgageprice
 
-		ret = []
-		for nl in xrange(nh[0], 6):
+		ret = [((0,0),[])]
+		for nl in xrange(nh[0] + 1, 6):
 			things = []
-			for j in xrange(1, nl + 1):
+			for j in xrange(0, nl):
 				for e in g:
 					things.append((self.buy_house,
 							e.estateid))
@@ -153,9 +153,8 @@ class MarkovStrategy(Strategy):
 				before = m.amortized[e.estateid][2 + e.houses - int(e.mortgaged)]
 				after = m.amortized[e.estateid][2 + nl]
 				diff = after - before
-			cost = g[0].houseprice * len(g) * nl + mc
-			if cost == 0.0:
-				cost = 1.0
+			cost = g[0].houseprice * len(g) * \
+					(nl - g[0].houses) + mc
 			ret.append(((cost, diff/cost), ml + things))
 		return ret
 
@@ -199,13 +198,13 @@ class MarkovStrategy(Strategy):
 				v = m.de[e.estateid] * 50
 
 			if e.mortgaged:
-				bucket = ((e.mortgageprice, v),
+				bucket = ((e.unmortgageprice, v / e.unmortgageprice),
 						[(self.unmortgage, e.estateid)])
 			else:
-				bucket = ((-e.mortgageprice, -v),
+				bucket = ((-e.mortgageprice, -v / e.mortgageprice),
 						[(self.mortgage, e.estateid)])
 
-			#b.append([((0, 0.0), []), bucket])
+			b.append([((0, 0.0), []), bucket])
 
 		for g in monopolies:
 			x = self.management_choices(m, g)
@@ -217,15 +216,15 @@ class MarkovStrategy(Strategy):
 			'sell_house':'magenta',
 		}
 
-		#for x in b:
-		#	self.msg('bucket:\n', ['bold'])
-		#	for ((weight, value), actions) in x:
-		#		self.msg('w=%d v=%.5f\n'%(weight, value))
-		#		for action,estateid in actions:
-		#			a = action.__func__.func_name
-		#			self.msg('%s'%a, [t.get(a, 'yellow')])
-		#			self.msg(' %s\n'%self.s.estates[estateid].name)
-		#		self.msg('\n')
+		for x in b:
+			self.msg('bucket:\n', ['bold'])
+			for ((weight, value), actions) in x:
+				self.msg('w=%d v=%.5f\n'%(weight, value))
+				for action,estateid in actions:
+					a = action.__func__.func_name
+					self.msg('%s'%a, [t.get(a, 'yellow')])
+					self.msg(' %s\n'%self.s.estates[estateid].name)
+				self.msg('\n')
 
 		(returns, l) = self.optimal_moves(b, money)
 		shout = False
