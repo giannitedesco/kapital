@@ -138,7 +138,23 @@ class MarkovStrategy(Strategy):
 			self.msg('PAYING FIXED\n', ['red'])
 			return False
 
-	def management_choices(self, m, g):
+	def misc_options(self, m, e):
+		try:
+			v = m.amortized[e.estateid][1]
+		except:
+			# FIXME: railroads and utilities
+			v = m.de[e.estateid] * 50
+
+		if e.mortgaged:
+			bucket = (e.unmortgageprice, v,
+					[(self.unmortgage, e.estateid)])
+		else:
+			bucket = (-e.mortgageprice, -v,
+					[(self.mortgage, e.estateid)])
+
+		return [(0, 0.0, []), bucket]
+
+	def monopoly_options(self, m, g):
 		# exclude utilities and railroads
 		if g[0].houseprice <= 0:
 			# FIXME: should at least unmortgage them
@@ -204,6 +220,7 @@ class MarkovStrategy(Strategy):
 		return ret
 
 	def optimal_moves(self, b, max_weight):
+		# Brute force
 		def recursive(cur, bleft, vsofar, max_weight, out):
 			if max_weight < 0:
 				return
@@ -223,46 +240,41 @@ class MarkovStrategy(Strategy):
 		return out[0]
 
 	def manage_estates(self, p):
+		# First decide how much cash we're working with
 		reserve = 200
 		money = p.money - reserve
 		if money < 0:
 			return
 
-		hand = self.hand(p)
-		(monopolies, misc) = self.split_hand(hand)
-
+		# Decide which model to use for opponent rolls
 		if True:
 			m = self.m_lj
 		else:
 			m = self.m_rj
 
+		# Split the hand in to monopolies and misc
+		hand = self.hand(p)
+		(monopolies, misc) = self.split_hand(hand)
+
+		# Construct an array of options for each misc estate, and
+		# for each monopoly as a whole
 		b = []
 		for e in misc:
-			try:
-				v = m.amortized[e.estateid][1]
-			except:
-				# FIXME: railroads and utilities
-				v = m.de[e.estateid] * 50
-
-			if e.mortgaged:
-				bucket = (e.unmortgageprice, v,
-						[(self.unmortgage, e.estateid)])
-			else:
-				bucket = (-e.mortgageprice, -v,
-						[(self.mortgage, e.estateid)])
-
-			b.append([(0, 0.0, []), bucket])
-
-		for g in monopolies:
-			x = self.management_choices(m, g)
+			x = self.misc_options(m, e)
 			if x is not None:
 				b.append(x)
+		for g in monopolies:
+			x = self.monopoly_options(m, g)
+			if x is not None:
+				b.append(x)
+
 		t = {'mortgage':'red',
 			'unmortgage':'green',
 			'buy_house':'blue',
 			'sell_house':'purple',
 		}
 
+		# Print the options we have to chose from
 		#for x in b:
 		#	self.msg('bucket:\n', ['bold'])
 		#	for ((weight, value), actions) in x:
@@ -273,9 +285,12 @@ class MarkovStrategy(Strategy):
 		#			self.msg(' %s\n'%self.s.estates[estateid].name)
 		#		self.msg('\n')
 
+		# Calculate optimal choices
 		(returns, l) = self.optimal_moves(b, money)
 		if returns < 0:
 			return
+
+		# Don't clutter up the output if we're not doing anything
 		shout = False
 		for actions in l:
 			for action,estateid in actions:
@@ -286,6 +301,8 @@ class MarkovStrategy(Strategy):
 				p.money, reserve, money), ['bold'])
 			self.msg('Optimal (expected return %.5f):\n'%returns,
 					['bold'])
+
+		# Implement the actions
 		for actions in l:
 			for action,estateid in actions:
 				a = action.__func__.func_name
