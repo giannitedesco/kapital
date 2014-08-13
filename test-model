@@ -36,6 +36,38 @@ def game_from_conf(c, player):
 	gs.game_on()
 	return gs
 
+def iterate(s, p, m):
+	gs = s.s
+
+	print 'Simulating:'
+	while m:
+		m.pop()
+	s.manage_estates(p)
+	print
+
+	# TODO: validate the solution abides by the rules
+	print 'Solution:'
+	for (move, estateid) in m:
+		e = gs.estates[estateid]
+		g = gs.groups[e.group]
+		print move, estateid, e.name
+		if move == 'buy-house':
+			p.money -= e.houseprice
+			e.houses += 1
+		elif move == 'sell-house':
+			p.money += e.sellhouseprice
+			e.houses -= 1
+		elif move == 'mortgage':
+			p.money += e.mortgageprice
+			e.mortgaged = True
+		elif move == 'unmortgage':
+			p.money -= e.unmortgageprice
+			e.mortgaged = False
+	print
+	
+	print 'Cash remaining: %u'%p.money
+	print
+
 def main():
 	opts = ArgumentParser(description='Test a game strategy')
 	opts.add_argument('cash', metavar='cash', type=int,
@@ -146,31 +178,7 @@ def main():
 					nh and ' (%u houses)'%nh or '')
 	print
 
-	print 'Simulating:'
-	s.manage_estates(p)
-	print
-
-	# TODO: validate the solution abides by the rules
-	print 'Solution:'
-	for (move, estateid) in m:
-		e = gs.estates[estateid]
-		g = gs.groups[e.group]
-		print move, estateid, e.name
-		if move == 'buy-house':
-			p.money -= e.houseprice
-			e.houses += 1
-		elif move == 'sell-house':
-			p.money += e.sellhouseprice
-			e.houses -= 1
-		elif move == 'mortgage':
-			p.money += e.mortgageprice
-			e.mortgaged = True
-		elif move == 'unmortgage':
-			p.money -= e.unmortgageprice
-			e.mortgaged = False
-	print
-	
-	print 'Cash remaining: %u'%p.money
+	iterate(s, p, m)
 	
 if __name__ == '__main__':
 	main()

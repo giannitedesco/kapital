@@ -220,23 +220,30 @@ class MarkovStrategy(Strategy):
 		return ret
 
 	def optimal_moves(self, b, max_weight):
-		# Brute force
-		def recursive(cur, bleft, vsofar, max_weight, out):
+		# Brute force, we can't branch and bound here because of
+		# negative costs and weights
+		def recursive(cur, bleft, vsofar, capacity, max_weight, out):
+			# blown the limit
 			if max_weight < 0:
 				return
+
+			# hit bottom of search tree, evaluate
 			if not bleft:
-				(bestv, _) = out[0]
+				this_cost = capacity - max_weight
+				(bestv, bestc, __) = out[0]
 				if vsofar > bestv:
-					out[0] = (vsofar, cur[:])
+					out[0] = (vsofar, this_cost, cur[:])
 				return
+
+			# evaluate all sub-trees
 			for (w, v, _) in bleft[0]:
 				cur.append(_)
 				recursive(cur, bleft[1:], vsofar + v,
-					max_weight - w, out)
+					capacity, max_weight - w, out)
 				cur.pop()
-			return
-		out = [(0.0, [])]
-		recursive([], b, 0.0, max_weight, out)
+
+		out = [(0.0, max_weight, [])]
+		recursive([], b, 0.0, max_weight, max_weight, out)
 		return out[0]
 
 	def manage_estates(self, p):
@@ -286,7 +293,7 @@ class MarkovStrategy(Strategy):
 		#		self.msg('\n')
 
 		# Calculate optimal choices
-		(returns, l) = self.optimal_moves(b, money)
+		(returns, cost, l) = self.optimal_moves(b, money)
 		if returns < 0:
 			return
 
@@ -299,8 +306,11 @@ class MarkovStrategy(Strategy):
 		if shout:
 			self.msg('Manage estates: %u cash - reserve %u = %u\n'%(
 				p.money, reserve, money), ['bold'])
-			self.msg('Optimal (expected return %.5f):\n'%returns,
+			self.msg('Optimal: outlay %u, expected return %.5f\n'%(
+					cost, returns),
 					['bold'])
+			self.msg('%.3f opponent rolls to recoup\n'%(
+				cost/returns), ['bold'])
 
 		# Implement the actions
 		for actions in l:
