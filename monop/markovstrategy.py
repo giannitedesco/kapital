@@ -152,6 +152,9 @@ class MarkovStrategy(Strategy):
 		for e in filter(lambda x:x.mortgaged, g):
 			ml.append((self.unmortgage, e.estateid))
 			mc += e.unmortgageprice
+			before = m.amortized[e.estateid][0]
+			after = m.amortized[e.estateid][2]
+			mv += after - before
 		if ml:
 			ret.append(((mc, mv), ml))
 
@@ -178,7 +181,7 @@ class MarkovStrategy(Strategy):
 					[2 + e.houses - int(e.mortgaged)]
 				after = m.amortized[e.estateid][2 + numhi]
 				ev += after - before
-			ret.append(((ec, ev/ec), el))
+			ret.append(((ec, ev), el))
 
 		# Then add an option to buy n levels of houses starting
 		# from an even base and ending with all hotels
@@ -195,7 +198,7 @@ class MarkovStrategy(Strategy):
 				diff = after - before
 			cost = g[0].houseprice * len(g) * \
 					(nl - nh[0][0]) + ec
-			ret.append(((cost, diff/cost), el + things))
+			ret.append(((cost, diff), el + things))
 		return ret
 
 	def optimal_moves(self, b, max_weight):
@@ -240,10 +243,10 @@ class MarkovStrategy(Strategy):
 				v = m.de[e.estateid] * 50
 
 			if e.mortgaged:
-				bucket = ((e.unmortgageprice, v / e.unmortgageprice),
+				bucket = ((e.unmortgageprice, v),
 						[(self.unmortgage, e.estateid)])
 			else:
-				bucket = ((-e.mortgageprice, -v / e.mortgageprice),
+				bucket = ((-e.mortgageprice, -v),
 						[(self.mortgage, e.estateid)])
 
 			b.append([((0, 0.0), []), bucket])
