@@ -33,7 +33,7 @@ class MarkovStrategy(Strategy):
 		for e in monoplist:
 			if raised >= target or e.mortgaged or e.houses > 0:
 				continue
-			self.unmortgge(e.estateid)
+			self.unmortgage(e.estateid)
 			raised += e.mortgageprice
 
 		if raised >= target:
@@ -213,6 +213,11 @@ class MarkovStrategy(Strategy):
 			x = self.management_choices(m, g)
 			if x is not None:
 				b.append(x)
+		t = {'mortgage':'red',
+			'unmortgage':'green',
+			'buy_house':'cyan',
+			'sell_house':'magenta',
+		}
 
 		#for x in b:
 		#	self.msg('bucket:\n', ['bold'])
@@ -220,36 +225,16 @@ class MarkovStrategy(Strategy):
 		#		self.msg('w=%d v=%.5f\n'%(weight, value))
 		#		for action,estateid in actions:
 		#			a = action.__func__.func_name
-		#			if a == 'mortgage':
-		#				tag = 'red'
-		#			elif a == 'unmortgage':
-		#				tag = 'green'
-		#			elif a == 'buy_house':
-		#				tag = 'cyan'
-		#			elif a == 'sell_house':
-		#				tag = 'magenta'
-		#			else:
-		#				tag = 'yellow'
-		#			self.msg('%s'%a, [tag])
+		#			self.msg('%s'%a, [t.get(a, 'yellow')])
 		#			self.msg(' %s\n'%self.s.estates[estateid].name)
 		#		self.msg('\n')
 
 		(returns, l) = self.optimal_moves(b, money)
-		self.msg('optimal (expected return %.5f:\n'%returns, ['bold'])
+		self.msg('optimal (expected return %.5f):\n'%returns, ['bold'])
 		for actions in l:
 			for action,estateid in actions:
 				a = action.__func__.func_name
-				if a == 'mortgage':
-					tag = 'red'
-				elif a == 'unmortgage':
-					tag = 'green'
-				elif a == 'buy_house':
-					tag = 'cyan'
-				elif a == 'sell_house':
-					tag = 'magenta'
-				else:
-					tag = 'yellow'
-				self.msg('%s'%a, [tag])
+				self.msg('%s'%a, [t.get(a, 'yellow')])
 				self.msg(' %s\n'%self.s.estates[estateid].name)
 				action(estateid)
 

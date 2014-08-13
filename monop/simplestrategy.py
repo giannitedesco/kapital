@@ -26,7 +26,7 @@ class SimpleStrategy(Strategy):
 		for e in monoplist:
 			if raised >= target or e.mortgaged or e.houses > 0:
 				continue
-			self.unmortgge(e.estateid)
+			self.unmortgage(e.estateid)
 			raised += e.mortgageprice
 
 		if raised >= target:
