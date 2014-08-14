@@ -34,7 +34,7 @@ class MarkovStrategy(Strategy):
 		for e in monoplist:
 			if raised >= target or e.mortgaged or e.houses > 0:
 				continue
-			self.unmortgage(e.estateid)
+			self.mortgage(e.estateid)
 			raised += e.mortgageprice
 
 		if raised >= target:
@@ -273,6 +273,9 @@ class MarkovStrategy(Strategy):
 		return ret
 
 	def optimal_moves(self, b, max_weight):
+		#self.msg('%d items to search\n'%\
+		#	reduce(operator.mul, map(len, b), 1))
+
 		# Brute force, we can't branch and bound here because of
 		# negative costs and weights
 		def recursive(cur, bleft, vsofar, capacity, max_weight, out):
