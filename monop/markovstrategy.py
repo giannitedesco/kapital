@@ -55,8 +55,8 @@ class MarkovStrategy(Strategy):
 
 		net = self.player_net_worth(p)
 		net = float(pc) * float(net) / 100.0
-		self.msg('fixed price is %d, assets is %d\n'%(fixed, money))
-		if money < fixed:
+		self.msg('fixed price is %d, assets is %d\n'%(fixed, net))
+		if net < fixed:
 			self.msg('PAYING PERCENTAGE\n', ['dark green'])
 			return True
 		else:
@@ -358,11 +358,10 @@ class MarkovStrategy(Strategy):
 		#		self.print_actions(actions)
 		#		self.msg('\n')
 
-		self.msg('Raising: %u bucks, got %u in cash, target is %u\n'%(
-			target, p.money, target - p.money), ['bold'])
-		(losses, raised, l) = self.minimise_losses(b, target - p.money)
+		self.msg('Raising: %u bucks\n'%target, ['bold'])
+		(losses, raised, l) = self.minimise_losses(b, target)
 		raised = -raised
-		if raised < target - p.money:
+		if raised < target:
 			# should never get here
 			self.msg('only raised %d bucks\n'%raised,
 				['bold','red'])

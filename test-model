@@ -170,7 +170,7 @@ class Test(object):
 		debt = net / 2
 		print 'Net worth: %u'%net
 		print 'Rasing %u'%debt
-		self.s.raise_cash(self.p, debt)
+		self.s.raise_cash(self.p, debt - self.p.money)
 		self.p.money -= debt
 		print
 		self.apply_results()
