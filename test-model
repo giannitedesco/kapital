@@ -149,7 +149,7 @@ class Test(object):
 				self.p.money += e.mortgageprice
 				e.mortgaged = True
 			elif move == 'unmortgage':
-				sef.p.money -= e.unmortgageprice
+				self.p.money -= e.unmortgageprice
 				e.mortgaged = False
 		print
 		

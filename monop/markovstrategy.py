@@ -156,9 +156,65 @@ class MarkovStrategy(Strategy):
 		# Start with a "do nothing" option
 		ret = [(0,0,[])]
 
+		# If development is uneven, add an option to even them out
+		# by selling
+		presell = {}
+		sl = []
+		sv = 0.0
+		sc = 0
+		while True:
+			nh = sorted(map(lambda x:(x.houses -
+						presell.get(x.estateid, 0),
+					x), g), reverse = True)
+			numhi, hi = nh[0]
+			numlo, lo = nh[-1]
+
+			if numlo == numhi:
+				break
+			sl.append((self.sell_house, hi.estateid))
+			sc -= hi.sellhouseprice
+			presell[hi.estateid] = presell.get(hi.estateid, 0) + 1
+		if sl:
+			for e in map(lambda x:self.s.estates[x],
+					presell.keys()):
+				before = m.amortized[e.estateid]\
+					[2 + e.houses - int(e.mortgaged)]
+				after = m.amortized[e.estateid][2 + numlo]
+				sv += after - before
+			ret.append((sc, sv, sl))
+
+		# Then add an option to sell n levels of houses starting
+		# from an even base and ending with all properties mortgaged
+		for nl in xrange(nh[0][0] - 1, -2, -1):
+			things = []
+			for j in xrange(nh[0][0] - 1, nl - 1, -1):
+				for e in g:
+					if j < 0:
+						things.append((self.mortgage,
+							e.estateid))
+					else:
+						things.append((self.sell_house,
+							e.estateid))
+			v = 0.0
+			cost = 0
+			for e in g:
+				before = m.amortized[e.estateid]\
+					[2 + e.houses]
+				if nl < 0:
+					after = 0.0
+					cost += -e.sellhouseprice * nh[0][0]
+					cost += -e.mortgageprice
+				else:
+					after = m.amortized[e.estateid][2 + nl]
+					cost += -e.sellhouseprice \
+						* (nh[0][0] - nl)
+				diff = after - before
+				v += diff
+			ret.append((cost, v, sl + things))
+
 		# Add an option to unmortgage them all, if any are mortgaged
 		mc = 0
-		mv = 0.0
+		mv = 0
 		ml = []
 		for e in filter(lambda x:x.mortgaged, g):
 			ml.append((self.unmortgage, e.estateid))
@@ -170,38 +226,11 @@ class MarkovStrategy(Strategy):
 			ret.append((mc, mv, ml))
 
 		# If development is uneven, add an option to even them out
-		# by selling
-		presell = {}
-		el = ml[:]
-		ev = mv
-		ec = 0.0
-		while True:
-			nh = sorted(map(lambda x:(x.houses -
-						presell.get(x.estateid, 0),
-					x), g), reverse = True)
-			numhi, hi = nh[0]
-			numlo, lo = nh[-1]
-
-			if numlo == numhi:
-				break
-			el.append((self.sell_house, hi.estateid))
-			ec -= hi.houseprice
-			presell[hi.estateid] = presell.get(hi.estateid, 0) + 1
-		if len(el) > len(ml):
-			for e in map(lambda x:self.s.estates[x],
-					presell.keys()):
-				before = m.amortized[e.estateid]\
-					[2 + e.houses - int(e.mortgaged)]
-				after = m.amortized[e.estateid][2 + numlo]
-				ev += after - before
-			ret.append((ec, ev, el))
-
-		# If development is uneven, add an option to even them out
 		# by buying
 		prebuy = {}
-		el = ml[:]
-		ev = mv
-		ec = 0.0
+		bl = ml[:]
+		bv = mv
+		bc = 0
 		while True:
 			nh = sorted(map(lambda x:(x.houses +
 						prebuy.get(x.estateid, 0),
@@ -211,33 +240,36 @@ class MarkovStrategy(Strategy):
 
 			if numlo == numhi:
 				break
-			el.append((self.buy_house, lo.estateid))
-			ec += lo.houseprice
+			bl.append((self.buy_house, lo.estateid))
+			bc += lo.houseprice
 			prebuy[lo.estateid] = prebuy.get(lo.estateid, 0) + 1
-		if len(el) > len(ml):
+		if len(bl) > len(ml):
 			for e in map(lambda x:self.s.estates[x], prebuy.keys()):
 				before = m.amortized[e.estateid]\
 					[2 + e.houses - int(e.mortgaged)]
 				after = m.amortized[e.estateid][2 + numhi]
-				ev += after - before
-			ret.append((ec, ev, el))
+				bv += after - before
+			ret.append((bc, bv, bl))
 
 		# Then add an option to buy n levels of houses starting
 		# from an even base and ending with all hotels
-		for nl in xrange(nh[0][0] + 1, 6):
+		for nl in xrange(nh[-1][0] + 1, 6):
 			things = []
 			for j in xrange(nh[0][0], nl):
 				for e in g:
 					things.append((self.buy_house,
 							e.estateid))
+			v = 0.0
 			for e in g:
 				before = m.amortized[e.estateid]\
 					[2 + e.houses - int(e.mortgaged)]
 				after = m.amortized[e.estateid][2 + nl]
 				diff = after - before
+				v += diff
 			cost = g[0].houseprice * len(g) * \
-					(nl - nh[0][0]) + ec
-			ret.append((cost, diff, el + things))
+					(nl - nh[0][0]) + bc
+			ret.append((cost, v, bl + things))
+
 		return ret
 
 	def optimal_moves(self, b, max_weight):
