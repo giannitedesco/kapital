@@ -142,7 +142,7 @@ class MarkovStrategy(Strategy):
 						* (nh[0][0] - nl)
 				diff = after - before
 				v += diff
-			ret.append((cost, v, sl + things))
+			ret.append((cost + sc, v, sl + things))
 
 		# Add an option to unmortgage them all, if any are mortgaged
 		mc = 0
@@ -162,7 +162,7 @@ class MarkovStrategy(Strategy):
 		prebuy = {}
 		bl = ml[:]
 		bv = mv
-		bc = 0
+		bc = mc
 		while True:
 			nh = sorted(map(lambda x:(x.houses +
 						prebuy.get(x.estateid, 0),
@@ -348,6 +348,7 @@ class MarkovStrategy(Strategy):
 		self.apply_move(l)
 
 	def raise_cash(self, p, target):
+		self.msg('Raising: %u bucks\n'%target, ['bold'])
 		b = self.move_tree(p)
 
 		# Print the options we have to chose from
@@ -358,7 +359,6 @@ class MarkovStrategy(Strategy):
 		#		self.print_actions(actions)
 		#		self.msg('\n')
 
-		self.msg('Raising: %u bucks\n'%target, ['bold'])
 		(losses, raised, l) = self.minimise_losses(b, target)
 		raised = -raised
 		if raised < target:
