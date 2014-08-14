@@ -13,74 +13,6 @@ class MarkovStrategy(Strategy):
 		self.m_rj = Model(conf, d, rj = True)
 		self.m_lj = Model(conf, d, rj = False)
 
-	def do_raise_cash(self, target, hand):
-		raised = 0
-
-		(monopolies, crap) = self.split_hand(hand)
-
-		# first try mortgage properties that are not
-		# part of monopolies
-		for e in crap:
-			if raised >= target or e.mortgaged or e.houses > 0:
-				continue
-			self.mortgage(e.estateid)
-			raised += e.mortgageprice
-
-		if raised >= target:
-			return raised
-
-		# now try mortgage undeveloped monopolies
-		monoplist = sum(monopolies, [])
-		for e in monoplist:
-			if raised >= target or e.mortgaged or e.houses > 0:
-				continue
-			self.mortgage(e.estateid)
-			raised += e.mortgageprice
-
-		if raised >= target:
-			return raised
-
-		# now to sell houses, sell entire rows at once
-		# just to keep it simple
-		while raised < target:
-			this_time = 0
-			for g in monopolies:
-				if False not in map(lambda x:x.mortgaged,g):
-					continue
-				if raised >= target:
-					break
-				for num,e in sorted(map(lambda x:(x.houses,x),g),
-							reverse=True):
-					if e.houses <= 0:
-						continue
-					self.sell_house(e.estateid)
-					# FIXME
-					e.houses -= 1
-					this_time += e.sellhouseprice
-			if not this_time:
-				break
-			raised += this_time
-
-		# shouldn't really be possible, we're bust
-		return raised
-
-	def raise_cash(self, p, target):
-		hand = self.hand(p)
-		for e in hand:
-			self.msg('I own: [%d]: %s\n'%(e.estateid, e.name),
-				[e.mortgaged and 'red' or 'dark green'])
-		self.msg('must raise %d bucks!\n'%target)
-
-		raised = self.do_raise_cash(target, hand)
-		if raised < target:
-			# should never get here
-			self.msg('only raised %d bucks\n'%raised,
-				['bold','red'])
-			return False
-
-		self.msg('raised %d bucks\n'%raised, ['bold','dark green'])
-		return True
-
 	def handle_debt(self, p):
 		self.msg('handle debts\n')
 		e = self.s.estates[p.location]
@@ -272,19 +204,19 @@ class MarkovStrategy(Strategy):
 
 		return ret
 
-	def optimal_moves(self, b, max_weight):
+	def maximise_gains(self, b, max_weight):
 		#self.msg('%d items to search\n'%\
 		#	reduce(operator.mul, map(len, b), 1))
 
 		# Brute force, we can't branch and bound here because of
 		# negative costs and weights
 		def recursive(cur, bleft, vsofar, capacity, max_weight, out):
-			# blown the limit
-			if max_weight < 0:
-				return
-
 			# hit bottom of search tree, evaluate
 			if not bleft:
+				# blown the limit
+				if max_weight < 0:
+					return
+
 				this_cost = capacity - max_weight
 				(bestv, bestc, __) = out[0]
 				if vsofar > bestv:
@@ -302,13 +234,36 @@ class MarkovStrategy(Strategy):
 		recursive([], b, 0.0, max_weight, max_weight, out)
 		return out[0]
 
-	def manage_estates(self, p):
-		# First decide how much cash we're working with
-		reserve = 200
-		money = p.money - reserve
-		if money < 0:
-			return
+	def minimise_losses(self, b, min_weight):
+		#self.msg('%d items to search\n'%\
+		#	reduce(operator.mul, map(len, b), 1))
 
+		# Brute force, we can't branch and bound here because of
+		# negative costs and weights
+		def recursive(cur, bleft, vsofar, capacity, min_weight, out):
+			# hit bottom of search tree, evaluate
+			if not bleft:
+				# blown the limit
+				(bestv, bestc, __) = out[0]
+				if min_weight > capacity:
+					return
+
+				if vsofar > bestv:
+					out[0] = (vsofar, min_weight, cur[:])
+				return
+
+			# evaluate all sub-trees
+			for (w, v, _) in bleft[0]:
+				cur.append(_)
+				recursive(cur, bleft[1:], vsofar + v,
+					capacity, min_weight + w, out)
+				cur.pop()
+
+		out = [(-float('inf'), 0, [])]
+		recursive([], b, 0.0, -min_weight, 0, out)
+		return out[0]
+
+	def move_tree(self, p):
 		# Decide which model to use for opponent rolls
 		if True:
 			m = self.m_lj
@@ -330,26 +285,47 @@ class MarkovStrategy(Strategy):
 			x = self.monopoly_options(m, g)
 			if x is not None:
 				b.append(x)
+		return b
 
+	def print_action(self, action, estateid):
 		t = {'mortgage':'red',
 			'unmortgage':'green',
 			'buy_house':'blue',
 			'sell_house':'purple',
 		}
+		a = action.__func__.func_name
+		self.msg('%s'%a, [t.get(a, 'yellow')])
+		self.msg(' %s\n'%self.s.estates[estateid].name)
+
+	def print_actions(self, move):
+		for action,estateid in move:
+			self.print_action(action, estateid)
+
+	def apply_move(self, move):
+		for actions in move:
+			for action,estateid in actions:
+				self.print_action(action, estateid)
+				action(estateid)
+
+	def manage_estates(self, p):
+		# First decide how much cash we're working with
+		reserve = 200
+		money = p.money - reserve
+		if money < 0:
+			return
+
+		b = self.move_tree(p)
 
 		# Print the options we have to chose from
 		#for x in b:
 		#	self.msg('bucket:\n', ['bold'])
 		#	for (weight, value, actions) in x:
 		#		self.msg('w=%d v=%.5f\n'%(weight, value))
-		#		for action,estateid in actions:
-		#			a = action.__func__.func_name
-		#			self.msg('%s'%a, [t.get(a, 'yellow')])
-		#			self.msg(' %s\n'%self.s.estates[estateid].name)
+		#		self.print_actions(actions)
 		#		self.msg('\n')
 
 		# Calculate optimal choices
-		(returns, cost, l) = self.optimal_moves(b, money)
+		(returns, cost, l) = self.maximise_gains(b, money)
 		if returns < 0:
 			return
 
@@ -369,11 +345,32 @@ class MarkovStrategy(Strategy):
 				cost/returns), ['bold'])
 
 		# Implement the actions
-		for actions in l:
-			for action,estateid in actions:
-				a = action.__func__.func_name
-				self.msg('%s'%a, [t.get(a, 'yellow')])
-				self.msg(' %s\n'%self.s.estates[estateid].name)
-				action(estateid)
+		self.apply_move(l)
+
+	def raise_cash(self, p, target):
+		b = self.move_tree(p)
+
+		# Print the options we have to chose from
+		#for x in b:
+		#	self.msg('bucket:\n', ['bold'])
+		#	for (weight, value, actions) in x:
+		#		self.msg('w=%d v=%.5f\n'%(weight, value))
+		#		self.print_actions(actions)
+		#		self.msg('\n')
+
+		self.msg('Raising: %u bucks, got %u in cash, target is %u\n'%(
+			target, p.money, target - p.money), ['bold'])
+		(losses, raised, l) = self.minimise_losses(b, target - p.money)
+		raised = -raised
+		if raised < target - p.money:
+			# should never get here
+			self.msg('only raised %d bucks\n'%raised,
+				['bold','red'])
+			return False
+
+		self.apply_move(l)
+		self.msg('raised %d bucks\n'%raised, ['bold','dark green'])
+		return True
+
 
 gobject.type_register(MarkovStrategy)

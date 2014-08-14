@@ -167,10 +167,11 @@ class Test(object):
 		print
 		print '===[ Testing debt'
 		net = self.s.player_net_worth(self.p)
-		debt = net
+		debt = net / 2
 		print 'Net worth: %u'%net
 		print 'Rasing %u'%debt
 		self.s.raise_cash(self.p, debt)
+		self.p.money -= debt
 		print
 		self.apply_results()
 		print
