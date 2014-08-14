@@ -154,17 +154,18 @@ class Test(object):
 		print
 		
 		print 'Cash remaining: %u'%self.p.money
-		print
 
 		self.clear_results()
 
 	def run(self):
-		print 'Simulating:'
+		print
+		print '===[ Testing estate management'
 		self.s.manage_estates(self.p)
 		print
 		self.apply_results()
-		print
 
+		print
+		print '===[ Testing debt'
 		net = self.s.player_net_worth(self.p)
 		debt = net
 		print 'Net worth: %u'%net

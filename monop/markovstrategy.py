@@ -170,6 +170,34 @@ class MarkovStrategy(Strategy):
 			ret.append((mc, mv, ml))
 
 		# If development is uneven, add an option to even them out
+		# by selling
+		presell = {}
+		el = ml[:]
+		ev = mv
+		ec = 0.0
+		while True:
+			nh = sorted(map(lambda x:(x.houses -
+						presell.get(x.estateid, 0),
+					x), g), reverse = True)
+			numhi, hi = nh[0]
+			numlo, lo = nh[-1]
+
+			if numlo == numhi:
+				break
+			el.append((self.sell_house, hi.estateid))
+			ec -= hi.houseprice
+			presell[hi.estateid] = presell.get(hi.estateid, 0) + 1
+		if len(el) > len(ml):
+			for e in map(lambda x:self.s.estates[x],
+					presell.keys()):
+				before = m.amortized[e.estateid]\
+					[2 + e.houses - int(e.mortgaged)]
+				after = m.amortized[e.estateid][2 + numlo]
+				ev += after - before
+			ret.append((ec, ev, el))
+
+		# If development is uneven, add an option to even them out
+		# by buying
 		prebuy = {}
 		el = ml[:]
 		ev = mv
@@ -277,7 +305,7 @@ class MarkovStrategy(Strategy):
 		# Print the options we have to chose from
 		#for x in b:
 		#	self.msg('bucket:\n', ['bold'])
-		#	for ((weight, value), actions) in x:
+		#	for (weight, value, actions) in x:
 		#		self.msg('w=%d v=%.5f\n'%(weight, value))
 		#		for action,estateid in actions:
 		#			a = action.__func__.func_name
