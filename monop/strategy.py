@@ -83,6 +83,14 @@ class Strategy(gobject.GObject):
 			return e.tax
 		return 0
 
+	def player_net_worth(self, p):
+		net = p.money
+		for e in self.hand(p):
+			if not e.mortgaged:
+				net += e.mortgageprice
+				net += e.houses * e.sellhouseprice
+		return net 
+
 	def handle_debt(self, p):
 		raise NotImplemented
 

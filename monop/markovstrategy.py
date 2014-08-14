@@ -121,15 +121,8 @@ class MarkovStrategy(Strategy):
 		pc = e.taxpercentage and e.taxpercentage or 10
 		fixed = e.tax and e.tax or 200
 
-		money = p.money
-		for e in self.hand(p):
-			self.msg('I own: %s (%d + %d)\n'%(e.name,
-				e.mortgageprice, e.houses * e.sellhouseprice),
-				[e.mortgaged and 'red' or 'dark green'])
-			if not e.mortgaged:
-				money += e.mortgageprice
-				money += e.houses * e.sellhouseprice
-		money = float(pc) * float(money) / 100.0
+		net = self.player_net_worth(p)
+		net = float(pc) * float(net) / 100.0
 		self.msg('fixed price is %d, assets is %d\n'%(fixed, money))
 		if money < fixed:
 			self.msg('PAYING PERCENTAGE\n', ['dark green'])

@@ -9,64 +9,171 @@ from monop.markovstrategy import MarkovStrategy
 from copy import copy
 import sys
 
-def game_from_conf(c, player):
-	gs = GameState()
-	enemy = Player()
-	enemy.name = 'Enemy'
-	enemy.playerid = player.playerid + 1
-	gs.game_init([player, enemy])
+class Test(object):
+	def __init__(self, args):
+		super(Test, self).__init__()
+		print 'Loading config fromm: %s'%args.config
+		self.c = GameConf(open(args.config))
 
-	for i, e in enumerate(c.estates):
-		e = copy(e)
-		e.estateid = i
-		if e.group >= 0:
-			g = c.groups[e.group]
-			e.houseprice = g.houseprice
-			if not e.price:
-				e.price = g.price
-			e.mortgageprice = int(e.price / 2.0)
-			e.unmortgageprice = int((e.price/2.0) * 1.1)
-			e.sellhouseprice = int((e.houseprice)/2.0)
-		gs.estates[i] = e
+		print 'Using %s strategy'%(args.rij and 'remain-in-jail' \
+						or 'leave-jail')
+		print 'Cash amount: %d'%args.cash
+		print 'Properties owned: %s'%(', '.join(args.properties))
 
-	for i, g in enumerate(c.groups):
-		g = copy(g)
-		g.groupid = i
-		gs.groups[g.groupid] = g
-	gs.game_on()
-	return gs
+		self.p = Player()
+		self.p.playerid = 0
+		self.p.name = 'player'
+		self.p.money = args.cash
 
-def iterate(s, p, m):
-	gs = s.s
+		self.gs = self.game_from_conf(self.c, self.p)
+		self.set_strategy(MarkovStrategy(self.c))
+		self.init_game_state(self.gs, args.properties)
+		self.s.game_on(self.gs)
 
-	print 'Simulating:'
-	while m:
-		m.pop()
-	s.manage_estates(p)
-	print
+	def game_from_conf(self, c, player):
+		gs = GameState()
+		enemy = Player()
+		enemy.name = 'Enemy'
+		enemy.playerid = player.playerid + 1
+		gs.game_init([player, enemy])
 
-	# TODO: validate the solution abides by the rules
-	print 'Solution:'
-	for (move, estateid) in m:
-		e = gs.estates[estateid]
-		g = gs.groups[e.group]
-		print move, estateid, e.name
-		if move == 'buy-house':
-			p.money -= e.houseprice
-			e.houses += 1
-		elif move == 'sell-house':
-			p.money += e.sellhouseprice
-			e.houses -= 1
-		elif move == 'mortgage':
-			p.money += e.mortgageprice
-			e.mortgaged = True
-		elif move == 'unmortgage':
-			p.money -= e.unmortgageprice
-			e.mortgaged = False
-	print
-	
-	print 'Cash remaining: %u'%p.money
-	print
+		for i, e in enumerate(c.estates):
+			e = copy(e)
+			e.estateid = i
+			if e.group >= 0:
+				g = c.groups[e.group]
+				e.houseprice = g.houseprice
+				if not e.price:
+					e.price = g.price
+				e.mortgageprice = int(e.price / 2.0)
+				e.unmortgageprice = int((e.price/2.0) * 1.1)
+				e.sellhouseprice = int((e.houseprice)/2.0)
+			gs.estates[i] = e
+
+		for i, g in enumerate(c.groups):
+			g = copy(g)
+			g.groupid = i
+			gs.groups[g.groupid] = g
+		gs.game_on()
+		return gs
+
+	def set_strategy(self, s):
+		self.s = s
+		self.m = []
+
+		def strategy_msg(it, msg, tags):
+			color = {
+				'default':(0, 0),
+				'dark red':(0, 31),
+				'dark green':(0, 32),
+				'dark yellow':(0, 33),
+				'dark blue':(0, 34),
+				'dark magenta':(0, 35),
+				'dark cyan':(0, 36),
+				'light gray':(0, 37),
+				'light grey':(0, 37),
+				'dark gray':(0, 38),
+				'dark grey':(0, 38),
+				'red':(1, 31),
+				'green':(1, 32),
+				'yellow':(1, 33),
+				'blue':(1,34),
+				'magenta':(1,35),
+				'purple':(1,35),
+				'cyan':(1, 36),
+				'white':(1, 37),
+			}
+			b, c = color['default']
+			for t in tags:
+				if t == 'bold':
+					b,c = True, 40
+				else:
+					(b, c) = color.get(t, (b, c))
+			sys.stdout.write('\033[%u;%dm%s\033[0m'%(b, c, msg))
+		def mortgage(it, estateid):
+			self.m.append(('mortgage', estateid))
+		def unmortgage(it, estateid):
+			self.m.append(('unmortgage', estateid))
+		def buy_house(it, estateid):
+			self.m.append(('buy-house', estateid))
+		def sell_house(it, estateid):
+			self.m.append(('sell-house', estateid))
+
+		self.s.connect('msg', strategy_msg)
+		self.s.connect('mortgage', mortgage)
+		self.s.connect('unmortgage', unmortgage)
+		self.s.connect('buy-house', buy_house)
+		self.s.connect('sell-house', sell_house)
+
+	def init_game_state(self, gs, properties):
+		for a in properties:
+			mort = False
+			nh = 0
+			try:
+				eid, nh = a.split(':',1)
+			except ValueError:
+				if a[-1] == 'm':
+					mort = True
+					eid = a[:-1]
+				else:
+					eid = a
+			eid = int(eid)
+			nh = int(nh)
+			e = gs.estates[eid]
+			if e.group < 0:
+				raise Exception('%s can\'t be owned'%e.name)
+			e.owner = self.p.playerid
+			e.houses = nh
+			e.mortgaged = mort
+			print ' - %s%s%s'%(e.name,
+						mort and ' (mortgaged)' or '',
+						nh and ' (%u houses)'%nh or '')
+
+	def clear_results(self):
+		while self.m:
+			self.m.pop()
+
+	def apply_results(self):
+		print 'Solution:'
+		for (move, estateid) in self.m:
+			e = self.gs.estates[estateid]
+			g = self.gs.groups[e.group]
+			print move, estateid, e.name
+			if move == 'buy-house':
+				self.p.money -= e.houseprice
+				e.houses += 1
+			elif move == 'sell-house':
+				self.p.money += e.sellhouseprice
+				e.houses -= 1
+			elif move == 'mortgage':
+				self.p.money += e.mortgageprice
+				e.mortgaged = True
+			elif move == 'unmortgage':
+				sef.p.money -= e.unmortgageprice
+				e.mortgaged = False
+		print
+		
+		print 'Cash remaining: %u'%self.p.money
+		print
+
+		self.clear_results()
+
+	def run(self):
+		print 'Simulating:'
+		self.s.manage_estates(self.p)
+		print
+		self.apply_results()
+		print
+
+		net = self.s.player_net_worth(self.p)
+		debt = net
+		print 'Net worth: %u'%net
+		print 'Rasing %u'%debt
+		self.s.raise_cash(self.p, debt)
+		print
+		self.apply_results()
+		print
+
 
 def main():
 	opts = ArgumentParser(description='Test a game strategy')
@@ -91,94 +198,8 @@ def main():
 
 	args = opts.parse_args()
 
-	print 'Loading config fromm: %s'%args.config
-	c = GameConf(open(args.config))
-
-	print 'Using %s strategy'%(args.rij and 'remain-in-jail' \
-					or 'leave-jail')
-
-	p = Player()
-	p.playerid = 0
-	p.name = 'player'
-	p.money = args.cash
-	gs = game_from_conf(c, p)
-	#gs.estates[6].houses = 1
-	#gs.estates[5].mortgaged = True
-
-	s = MarkovStrategy(c)
-	def strategy_msg(it, msg, tags):
-		color = {
-			'default':(0, 0),
-			'dark red':(0, 31),
-			'dark green':(0, 32),
-			'dark yellow':(0, 33),
-			'dark blue':(0, 34),
-			'dark magenta':(0, 35),
-			'dark cyan':(0, 36),
-			'light gray':(0, 37),
-			'light grey':(0, 37),
-			'dark gray':(0, 38),
-			'dark grey':(0, 38),
-			'red':(1, 31),
-			'green':(1, 32),
-			'yellow':(1, 33),
-			'blue':(1,34),
-			'magenta':(1,35),
-			'purple':(1,35),
-			'cyan':(1, 36),
-			'white':(1, 37),
-		}
-		b, c = color['default']
-		for t in tags:
-			if t == 'bold':
-				b,c = True, 40
-			else:
-				(b, c) = color.get(t, (b, c))
-		sys.stdout.write('\033[%u;%dm%s\033[0m'%(b, c, msg))
-	m = []
-	def mortgage(it, estateid):
-		m.append(('mortgage', estateid))
-	def unmortgage(it, estateid):
-		m.append(('unmortgage', estateid))
-	def buy_house(it, estateid):
-		m.append(('buy-house', estateid))
-	def sell_house(it, estateid):
-		m.append(('sell-house', estateid))
-	s.connect('msg', strategy_msg)
-	s.connect('mortgage', mortgage)
-	s.connect('unmortgage', unmortgage)
-	s.connect('buy-house', buy_house)
-	s.connect('sell-house', sell_house)
-	s.game_on(gs)
-	
-	print
-	print 'Cash amount: %d'%args.cash
-	print 'Properties owned: %s'%(', '.join(map(str, args.properties)))
-	for a in args.properties:
-		mort = False
-		nh = 0
-		try:
-			eid, nh = a.split(':',1)
-		except ValueError:
-			if a[-1] == 'm':
-				mort = True
-				eid = a[:-1]
-			else:
-				eid = a
-		eid = int(eid)
-		nh = int(nh)
-		e = gs.estates[eid]
-		if e.group < 0:
-			raise Exception('%s can\'t be owned'%e.name)
-		e.owner = p.playerid
-		e.houses = nh
-		e.mortgaged = mort
-		print ' - %s%s%s'%(e.name,
-					mort and ' (mortgaged)' or '',
-					nh and ' (%u houses)'%nh or '')
-	print
-
-	iterate(s, p, m)
+	t = Test(args)
+	t.run()
 	
 if __name__ == '__main__':
 	main()
